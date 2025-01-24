@@ -8,13 +8,15 @@
 # include <unistd.h>
 # include <cerrno>
 # include <exception>
-# include <map>
+# include <sstream>
+# include <fstream>
 
 //connections
 # include <sys/socket.h>
 # include <netinet/in.h>
 # include <arpa/inet.h>
-# include <sys/select.h>
+# include <sys/epoll.h>
+# include <fcntl.h>
 
 //owns
 //#include "Client.hpp"

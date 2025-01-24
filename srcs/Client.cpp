@@ -11,7 +11,7 @@ Client::Client(int clientFd, const sockaddr_in& address): _clientFd(clientFd), _
 }
 Client::~Client()
 {
-    closeConnection();
+   closeConnection();
 }
 Client::Client(const Client& obj)
 {
@@ -21,10 +21,11 @@ Client& Client::operator=(const Client& obj)
 {
     if (this != &obj)
     {
-        _clientFd = -1;
+        _clientFd = obj._clientFd;
         _address = obj._address;
         _ip = obj._ip;
         _port = obj._port;
+        const_cast<Client&>(obj)._clientFd = -1;
     }
     return (*this);
 }
@@ -64,8 +65,8 @@ void Client::closeConnection()
 {
     if (_clientFd != -1)
     {
+        std::cout << "Closing connection for fd: " << _clientFd << std::endl;
         close(_clientFd);
-        std::cout << "Connection closed for client: " << _ip << ":" << _port << std::endl;
         _clientFd = -1;
     }
 }

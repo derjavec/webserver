@@ -11,11 +11,12 @@ class Server
         sockaddr_in _address;
         std::string _ip;
         int _port;
-        std::map<int, Client> _clients;
+        int _epollFd;
         bool _running;
         void initSocket();
         void bindSocket();
         void startListening();
+        void initEpoll();
     public :
         Server();
         Server(int port);
@@ -25,6 +26,9 @@ class Server
         void run();
         void stop();
         int acceptClient(sockaddr_in &clientAddress);
+        void handleClientEvent(int clientFd);
+        void processRequest(int clientFd, const std::string& message);
+        void sendHttpResponse(int clientFd, const std::string &response);
 };
 
 class ServerException : public std::exception
