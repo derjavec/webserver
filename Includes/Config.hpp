@@ -21,7 +21,8 @@ class Config
         bool validateConfigFile(const std::string& filename);
 
         int stringToInt(const std::string& str);
-        unsigned long stringToULong(const std::string& str);
+        unsigned long stringToULong(const std::string& str) const;
         static bool stringToBool(const std::string& str);
+        std::string numberToString(int number);
 };
 #endif

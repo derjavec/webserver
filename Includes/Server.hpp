@@ -2,7 +2,8 @@
 #define SERVER_HPP
 
 # include "Webserver.hpp"
-//# include "Client.hpp"
+# include "ServerConfig.hpp"
+
 class Client;
 class Server
 {
@@ -13,12 +14,20 @@ class Server
         int _port;
         int _epollFd;
         bool _running;
+        std::string _serverName;
+        std::string _root;
+        size_t _clientMaxBodySize;
+        std::string _index;
+        bool _autoindex;
+        std::map<int, std::string> _errorPages;
+        std::vector<LocationConfig> _locations;
+
         void initSocket();
         void bindSocket();
         void startListening();
         void initEpoll();
     public :
-        Server();
+        Server(const ServerConfig& config);
         Server(int port);
         ~Server();
         Server(const Server& obj);
@@ -29,6 +38,7 @@ class Server
         void handleClientEvent(int clientFd);
         void processRequest(int clientFd, const std::string& message);
         void sendHttpResponse(int clientFd, const std::string &response);
+        void print() const;
 };
 
 class ServerException : public std::exception

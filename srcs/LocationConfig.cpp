@@ -95,7 +95,7 @@ void LocationConfig::validate() const
     {
         try
         {
-            unsigned long bodySize = std::stoul(parameters.at("client_max_body_size"));
+            unsigned long bodySize = stringToULong(parameters.at("client_max_body_size"));
             if (bodySize <= 0)
                 throw std::runtime_error("LocationConfig: 'client_max_body_size' must be a positive number.");
         }
@@ -125,5 +125,41 @@ void LocationConfig::validate() const
         throw std::runtime_error("LocationConfig: 'redirect' is defined but empty.");
 
     std::cout << "LocationConfig validated successfully: " << parameters.at("path") << std::endl;
+    
 }
+
+void LocationConfig::print() const {
+    std::cout << "    Path: " << _path << std::endl;
+    std::cout << "    Root: " << _root << std::endl;
+    std::cout << "    Index: " << _index << std::endl;
+    std::cout << "    Autoindex: " << (_autoindex ? "on" : "off") << std::endl;
+
+    std::cout << "    CGI Paths: ";
+    for (size_t i = 0; i < _cgiPath.size(); ++i) {
+        std::cout << _cgiPath[i] << (i == _cgiPath.size() - 1 ? "" : ", ");
+    }
+    std::cout << std::endl;
+
+    std::cout << "    CGI Extensions: ";
+    for (size_t i = 0; i < _cgiExt.size(); ++i) {
+        std::cout << _cgiExt[i] << (i == _cgiExt.size() - 1 ? "" : ", ");
+    }
+    std::cout << std::endl;
+
+    std::cout << "    Redirect: " << (_redirect.empty() ? "None" : _redirect) << std::endl;
+    std::cout << "    Client Max Body Size: " << _clientMaxBodySize << std::endl;
+
+    std::cout << "    Methods: ";
+    for (size_t i = 0; i < _methods.size(); ++i) {
+        std::cout << _methods[i] << (i == _methods.size() - 1 ? "" : ", ");
+    }
+    std::cout << std::endl;
+
+    std::cout << "    Parameters Map:" << std::endl;
+    for (std::map<std::string, std::string>::const_iterator it = parameters.begin(); it != parameters.end(); ++it) {
+        std::cout << "      " << it->first << ": " << it->second << std::endl;
+    }
+    std::cout << "=========================" << std::endl;
+}
+
 

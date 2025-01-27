@@ -8,29 +8,36 @@
 
 int main(int argc, char **argv)
 {
-    (void)argv;
-    if (argc != 2)
+     if (argc != 2)
     {
         std::cerr << "Usage: " << argv[0] << " <config_file.conf>" << std::endl;
         return 1;
     }
-    std::string configFile = argv[1];
-    ServerConfig serverConfig;
-    if (!serverConfig.validateConfigFile(configFile))
+
+    std::string configFilePath = argv[1];
+    std::ifstream configFile(configFilePath.c_str());
+    if (!configFile.is_open())
+    {
+        std::cerr << "Error: Could not open configuration file: " << configFilePath << std::endl;
         return 1;
+    }
+
     try
     {
+        ServerConfig serverConfig;
+        serverConfig.parse(configFile);
+        serverConfig.validate();
+        std::cout << "Server configuration successfully parsed:\n";
+       // serverConfig.print();
 
-        Server server(8080);
+        Server server(serverConfig);
         server.run();
     }
-    catch (const ServerException &e)
-    {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }   
     catch (const std::exception &e)
     {
-        std::cerr << "Unexpected error: " << e.what() << std::endl;
-    }     
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
+    }
+
     return 0;
 }

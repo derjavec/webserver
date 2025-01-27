@@ -50,8 +50,10 @@ class LocationConfig : public Config
         void setClientMaxBodySize(unsigned long size);
         unsigned long getClientMaxBodySize() const;
 
-        void addMethod(std::string method);
+        void addMethod(const std::string& method);
         const std::vector<std::string>& getMethods() const;
+
+        void print() const;
 };
 
 #endif

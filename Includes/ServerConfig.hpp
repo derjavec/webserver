@@ -49,5 +49,7 @@ class ServerConfig : public Config
 
         void addLocation(const LocationConfig& location);
         const std::vector<LocationConfig>& getLocations() const;
+
+        void print() const;
 };
 #endif

@@ -1,9 +1,14 @@
 #include "Server.hpp"
 #include "Client.hpp"
 
-Server::Server(){}
-Server::Server(int port): _serverFd(-1), _port(port), _running(false)
+Server::Server(const ServerConfig& config): _serverFd(-1), _port(config.getPort()), _running(false) , _root(config.getRoot())
 {
+    _serverName = config.getServerName();
+    _clientMaxBodySize = config.getClientMaxBodySize();
+    _index = config.getIndex();
+    _autoindex = config.isAutoindexEnabled();
+    _errorPages = config.getErrorPages();
+    _locations = config.getLocations();
     memset(&_address, 0, sizeof(_address));
     _address.sin_family = AF_INET;
     _address.sin_port = htons(_port);
@@ -20,6 +25,8 @@ Server::Server(int port): _serverFd(-1), _port(port), _running(false)
         stop();
         throw;
     }
+
+   // print();
 }
 Server::~Server()
 {
@@ -128,21 +135,28 @@ void Server::processRequest(int clientFd, const std::string& message)
     std::istringstream requestStream(message);
     std::string method, path, version;
     requestStream >> method >> path >> version;
-    std::cout << "method: "<< method << std::endl;
-    std::cout << "path: "<< path << std::endl;
-    std::cout << "version: "<< version << std::endl;
     if (method != "GET")
     {
-        sendHttpResponse(clientFd, "HTTP/1.1 405 Method Not Allowed\r\n\r\n");
-        return;
+        std::map<int, std::string>::iterator it = _errorPages.find(405);
+        if (it != _errorPages.end())
+        {
+            const std::string& errorPage = it->second;
+            std::cout << "Error page for 405: " << errorPage << std::endl;
+        } 
+        else 
+            std::cerr << "Error page for 405 not found in the map." << std::endl;
+
     }
-    std::cout << "Attempting to open file: " << path << std::endl;
-    path = "/home/derjavec/Documents/webserver/www/index.html";
+    if (path == "/")
+        path = _root + _index;
     std::ifstream file(path.c_str());
     if (!file.is_open())
     {
-        std::cerr << "Failed to open file: " << path << " - Error: " << strerror(errno) << std::endl;
-        sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n");
+        std::map<int, std::string>::iterator it = _errorPages.find(404);
+        if (it != _errorPages.end())
+            sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n" + it->second);
+        else
+            sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n");
         return;
     }
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -151,7 +165,7 @@ void Server::processRequest(int clientFd, const std::string& message)
     response << "HTTP/1.1 200 OK\r\n"
              << "Content-Type: text/html\r\n"
              << "Content-Length: " << content.size() << "\r\n"
-             << "\r\n"
+             << "\r\n" 
              << content;
     sendHttpResponse(clientFd, response.str());
 }
@@ -241,6 +255,46 @@ void Server::stop()
         std::cout << "Server stopped." << std::endl;
     }
 }
+
+void Server::print() const
+{
+    std::cout << "=== Server Configuration ===" << std::endl;
+    std::cout << "Server Name: " << (_serverName.empty() ? "Not set (default: localhost)" : _serverName) << std::endl;
+    std::cout << "Port: " << _port << std::endl;
+    std::cout << "Root Directory: " << (_root.empty() ? "Not set (default: ./)" : _root) << std::endl;
+
+    if (_clientMaxBodySize != 0) {
+        std::cout << "Client Max Body Size: " << _clientMaxBodySize << " bytes" << std::endl;
+    } else {
+        std::cout << "Client Max Body Size: Not set (default: 1048576 bytes)" << std::endl;
+    }
+
+    std::cout << "Default Index: " << (_index.empty() ? "Not set (default: index.html)" : _index) << std::endl;
+    std::cout << "Autoindex: " << (_autoindex ? "Enabled" : "Disabled") << std::endl;
+
+    std::cout << "Error Pages: " << std::endl;
+    if (_errorPages.empty()) {
+        std::cout << "  None configured." << std::endl;
+    } else {
+        for (std::map<int, std::string>::const_iterator it = _errorPages.begin(); it != _errorPages.end(); ++it) {
+            std::cout << "  " << it->first << ": " << it->second << std::endl;
+        }
+    }
+
+    std::cout << "Locations: " << std::endl;
+    if (_locations.empty()) {
+        std::cout << "  None configured." << std::endl;
+    } else {
+        for (size_t i = 0; i < _locations.size(); ++i) {
+            std::cout << "  Location " << i + 1 << ":" << std::endl;
+            _locations[i].print();
+        }
+    }
+    std::cout << "=============================" << std::endl;
+}
+
+
+
 
 ServerException::ServerException(const std::string &message): _message(message){}
 const char *ServerException::what() const throw()

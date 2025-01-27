@@ -78,7 +78,7 @@ int Config::stringToInt(const std::string& str)
     return value;
 }
 
-unsigned long Config::stringToULong(const std::string& str)
+unsigned long Config::stringToULong(const std::string& str) const
 {
     std::stringstream ss(str);
     unsigned long value;
@@ -95,4 +95,11 @@ bool Config::stringToBool(const std::string& str)
     if (str == "false" || str == "off" || str == "0")
         return false;
     throw std::runtime_error("Invalid boolean: " + str);
+}
+
+std::string Config::numberToString(int number)
+{
+    std::stringstream ss;
+    ss << number;
+    return ss.str();
 }

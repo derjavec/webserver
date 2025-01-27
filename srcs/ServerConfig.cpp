@@ -40,10 +40,6 @@ void ServerConfig::setAutoindex(bool autoindex) { _autoindex = autoindex; }
 void ServerConfig::addErrorPage(int code, const std::string& path) { _errorPages[code] = path; }
 void ServerConfig::addLocation(const LocationConfig& location) {_locations.push_back(location);}
 
-
-
-
-
 void ServerConfig::parse(std::ifstream& configFile)
 {
     std::string line;
@@ -55,56 +51,105 @@ void ServerConfig::parse(std::ifstream& configFile)
         line = line.substr(0, line.find('#')); 
         line.erase(0, line.find_first_not_of(" \t")); 
         line.erase(line.find_last_not_of(" \t") + 1); 
-
         if (line.empty())
             continue;
-
-        if (line == "location {")
+        if (line.find("location ") != std::string::npos && line.find("{") != std::string::npos)
         {
             currentLocation = LocationConfig();
             inLocationBlock = true;
             continue;
         }
+
         if (line == "}")
         {
-            if (inLocationBlock)
+           if (inLocationBlock)
             {
-                currentLocation.parse(line);
                 _locations.push_back(currentLocation);
                 inLocationBlock = false;
             }
             continue;
         }
 
-        size_t delimiterPos = line.find(" ");
-        std::string key = line.substr(0, delimiterPos);
-        std::string value = line.substr(delimiterPos + 1);
-
-        setParameter("server_" + key, value);
-
-        if (key == "listen") _port = stringToInt(value);
-        else if (key == "server_name") _serverName = value;
-        else if (key == "root") _root = value;
-        else if (key == "client_max_body_size") _clientMaxBodySize = stringToULong(value);
-        else if (key == "index") _index = value;
-        else if (key == "autoindex") _autoindex = (value == "on");
-        else if (key == "error_page")
+        if (inLocationBlock)
         {
-            size_t spacePos = value.find(" ");
-            int errorCode = std::stoi(value.substr(0, spacePos));
-            std::string errorPage = value.substr(spacePos + 1);
-            _errorPages[errorCode] = errorPage;
-            setParameter("server_error_page_" + std::to_string(errorCode), errorPage);
+            size_t delimiterPos = line.find(" ");
+            std::string key = line.substr(0, delimiterPos);
+            std::string value = line.substr(delimiterPos + 1);
+
+            currentLocation.setParameter(key, value);
+
+            if (key == "path") currentLocation.setPath(value);
+            else if (key == "root") currentLocation.setRoot(value);
+            else if (key == "index") currentLocation.setIndex(value);
+            else if (key == "autoindex") currentLocation.setAutoindex(value == "on");
+            else if (key == "redirect") currentLocation.setRedirect(value);
+            else if (key == "cgi_path") currentLocation.addCgiPath(value);
+            else if (key == "cgi_ext") currentLocation.addCgiExtension(value);
+            else if (key == "client_max_body_size") currentLocation.setClientMaxBodySize(stringToULong(value));
+            else if (key == "method") currentLocation.addMethod(value);
+        }
+        else
+        {
+            size_t delimiterPos = line.find(" ");
+            std::string key = line.substr(0, delimiterPos);
+            std::string value = line.substr(delimiterPos + 1);
+
+            setParameter("server_" + key, value);
+
+            if (key == "listen")
+                _port = stringToInt(value);
+            else if (key == "server_name") _serverName = value;
+            else if (key == "root") _root = value;
+            else if (key == "client_max_body_size") _clientMaxBodySize = stringToULong(value);
+            else if (key == "index") _index = value;
+            else if (key == "autoindex") _autoindex = (value == "on");
+            else if (key == "error_page")
+            {
+                size_t spacePos = value.find(" ");
+                int errorCode = stringToInt(value.substr(0, spacePos));
+                std::string errorPage = value.substr(spacePos + 1);
+                _errorPages[errorCode] = errorPage;
+                setParameter("server_error_page_" + numberToString(errorCode), errorPage);
+            }
         }
     }
 }
 
 void ServerConfig::validate() const
 {
-    if (parameters.find("listen") == parameters.end())
+    if (parameters.find("server_listen") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'listen' parameter.");
-    if (parameters.find("root") == parameters.end())
+    if (parameters.find("server_root") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'root' parameter.");
-    if (parameters.find("index") == parameters.end())
+    if (parameters.find("server_index") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'index' parameter.");
+}
+
+void ServerConfig::print() const
+{
+    std::cout << "=== ServerConfig Parsed ===" << std::endl;
+    std::cout << "Port: " << _port << std::endl;
+    std::cout << "Server Name: " << _serverName << std::endl;
+    std::cout << "Root: " << _root << std::endl;
+    std::cout << "Client Max Body Size: " << _clientMaxBodySize << std::endl;
+    std::cout << "Index: " << _index << std::endl;
+    std::cout << "Autoindex: " << (_autoindex ? "on" : "off") << std::endl;
+
+    std::cout << "Error Pages: " << std::endl;
+    for (std::map<int, std::string>::const_iterator it = _errorPages.begin(); it != _errorPages.end(); ++it) {
+        std::cout << "  " << it->first << ": " << it->second << std::endl;
+    }
+
+    std::cout << "Locations: " << std::endl;
+    for (size_t i = 0; i < _locations.size(); ++i) {
+        std::cout << "  Location " << i + 1 << ":" << std::endl;
+        _locations[i].print();
+    }
+
+    std::cout << "Parameters Map:" << std::endl;
+    for (std::map<std::string, std::string>::const_iterator it = parameters.begin(); it != parameters.end(); ++it) {
+        std::cout << "  " << it->first << ": " << it->second << std::endl;
+    }
+    std::cout << "=========================" << std::endl;
+
 }
