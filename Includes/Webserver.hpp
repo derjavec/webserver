@@ -10,6 +10,8 @@
 # include <exception>
 # include <sstream>
 # include <fstream>
+# include <map>
+# include <vector>
 
 //connections
 # include <sys/socket.h>
