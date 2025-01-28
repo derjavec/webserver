@@ -23,7 +23,6 @@ class LocationConfig : public Config
         LocationConfig(const LocationConfig& obj);
         LocationConfig& operator=(const LocationConfig& obj);
 
-        void parse(std::ifstream& configFile);
         void validate() const;
         
         void setPath(const std::string& path);

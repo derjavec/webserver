@@ -19,6 +19,7 @@ LocationConfig& LocationConfig::operator=(const LocationConfig& obj)
         _cgiExt = obj._cgiExt;
         _clientMaxBodySize = obj._clientMaxBodySize;
         _methods = obj._methods;
+        parameters = obj.parameters;
     }
     return *this;
 }
@@ -43,46 +44,12 @@ const std::string& LocationConfig::getRedirect() const { return _redirect; }
 unsigned long LocationConfig::getClientMaxBodySize() const { return _clientMaxBodySize; }
 const std::vector<std::string>& LocationConfig::getMethods() const { return _methods; }
 
-void LocationConfig::parse(std::ifstream& configFile)
-{
-    std::string line;
-    while (std::getline(configFile, line))
-    {
-        line = line.substr(0, line.find('#'));
-        line.erase(0, line.find_first_not_of(" \t"));
-        line.erase(line.find_last_not_of(" \t") + 1);
-
-        if (line.empty())
-            continue;
-
-        size_t delimiterPos = line.find(" ");
-        std::string key = line.substr(0, delimiterPos);
-        std::string value = line.substr(delimiterPos + 1);
-
-        setParameter(key, value);
-
-        if (key == "path") _path = value;
-        else if (key == "root") _root = value;
-        else if (key == "index") _index = value;
-        else if (key == "autoindex") _autoindex = (value == "on");
-        else if (key == "redirect") _redirect = value;
-        else if (key == "cgi_path") _cgiPath.push_back(value);
-        else if (key == "cgi_ext") _cgiExt.push_back(value);
-        else if (key == "client_max_body_size") {
-            std::stringstream ss(value);
-            ss >> _clientMaxBodySize;
-            if (ss.fail()) {
-                throw std::runtime_error("Invalid client_max_body_size value: " + value);
-            }
-        }
-        else if (key == "method") _methods.push_back(value);
-    }
-}
-
 void LocationConfig::validate() const
 {
-    if (parameters.find("path") == parameters.end() || parameters.at("path").empty())
-        throw std::runtime_error("LocationConfig: Missing or empty 'path' parameter.");
+    if (parameters.find("path") == parameters.end())
+        throw std::runtime_error("LocationConfig: Missing 'path' parameter.");
+    if (parameters.at("path").empty() && parameters.at("path") != "/")
+        throw std::runtime_error("LocationConfig: 'path' parameter is empty or invalid.");
     if (parameters.find("root") == parameters.end() || parameters.at("root").empty())
         throw std::runtime_error("LocationConfig: Missing or empty 'root' parameter.");
     if (parameters.find("autoindex") != parameters.end())
@@ -128,7 +95,9 @@ void LocationConfig::validate() const
     
 }
 
-void LocationConfig::print() const {
+void LocationConfig::print() const
+{
+    std::cout << "=== LocationConfig Parsed ===" << std::endl;
     std::cout << "    Path: " << _path << std::endl;
     std::cout << "    Root: " << _root << std::endl;
     std::cout << "    Index: " << _index << std::endl;

@@ -16,15 +16,11 @@ int main(int argc, char **argv)
 
     std::string configFilePath = argv[1];
     std::ifstream configFile(configFilePath.c_str());
-    if (!configFile.is_open())
-    {
-        std::cerr << "Error: Could not open configuration file: " << configFilePath << std::endl;
-        return 1;
-    }
-
     try
     {
         ServerConfig serverConfig;
+        if (!serverConfig.validateConfigFile(configFilePath, configFile))
+            return 1; 
         serverConfig.parse(configFile);
         serverConfig.validate();
         std::cout << "Server configuration successfully parsed:\n";

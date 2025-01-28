@@ -3,6 +3,7 @@
 
 # include "Webserver.hpp"
 # include "ServerConfig.hpp"
+# include "HttpRequestParser.hpp"
 
 class Client;
 class Server
@@ -36,8 +37,8 @@ class Server
         void stop();
         int acceptClient(sockaddr_in &clientAddress);
         void handleClientEvent(int clientFd);
-        void processRequest(int clientFd, const std::string& message);
-        void sendHttpResponse(int clientFd, const std::string &response);
+       // void processRequest(int clientFd, const std::string& message);
+       // void sendHttpResponse(int clientFd, const std::string &response);
         void print() const;
 };
 

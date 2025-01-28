@@ -19,6 +19,7 @@ SRC = $(SRC_DIR)/main.cpp \
 	  $(UTILS_DIR)/Config.cpp \
 	  $(UTILS_DIR)/ServerConfig.cpp \
 	  $(UTILS_DIR)/LocationConfig.cpp \
+	  $(UTILS_DIR)/HttpRequestParser.cpp \
 
 OBJ = $(SRC:.cpp=.o)
 

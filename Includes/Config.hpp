@@ -13,12 +13,12 @@ class Config
         virtual ~Config();
         Config(const Config& obj);
         Config& operator=(const Config& obj);
-        virtual void parse(std::ifstream& configFile) = 0;
         virtual void validate() const = 0;
         void setParameter(const std::string& key, const std::string& value);
         const std::string& getParameter(const std::string& key) const;
 
-        bool validateConfigFile(const std::string& filename);
+        bool validateConfigFile(const std::string& filePath, std::ifstream& configFile);
+
 
         int stringToInt(const std::string& str);
         unsigned long stringToULong(const std::string& str) const;

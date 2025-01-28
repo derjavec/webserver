@@ -24,6 +24,8 @@ class ServerConfig : public Config
         ServerConfig& operator=(const ServerConfig& obj);
 
         void parse(std::ifstream& configFile);
+        void validateSingleValue(const std::string& key, const std::string& value);
+        void parseServerKeyValue(const std::string& key, const std::string& value);
         void validate() const;
 
         void setPort(uint16_t port);
@@ -49,6 +51,7 @@ class ServerConfig : public Config
 
         void addLocation(const LocationConfig& location);
         const std::vector<LocationConfig>& getLocations() const;
+
 
         void print() const;
 };

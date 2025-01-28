@@ -40,80 +40,152 @@ void ServerConfig::setAutoindex(bool autoindex) { _autoindex = autoindex; }
 void ServerConfig::addErrorPage(int code, const std::string& path) { _errorPages[code] = path; }
 void ServerConfig::addLocation(const LocationConfig& location) {_locations.push_back(location);}
 
+void ServerConfig::validateSingleValue(const std::string& key, const std::string& value)
+{
+    if (key == "error_page")
+        return;
+    size_t spacePos = value.find(" ");
+    if (spacePos != std::string::npos)
+    {
+        std::string extra = value.substr(spacePos + 1);
+        extra.erase(0, extra.find_first_not_of(" \t"));
+        extra.erase(extra.find_last_not_of(" \t") + 1);
+        if (!extra.empty() && extra != ";")
+            throw std::runtime_error("ServerConfig: Parameter '" + key + "' contains invalid extra values: " + extra);
+    }
+}
+
+
+void ServerConfig::parseServerKeyValue(const std::string& key, const std::string& value)
+{
+    validateSingleValue(key, value);
+    if (key == "listen")
+    {
+        int port = stringToInt(value);
+        if (port < 0 || port > 65535)
+            throw std::runtime_error("ServerConfig: Invalid port number. Must be between 0 and 65535.");
+        _port = port;
+    }
+    else if (key == "server_name")
+        _serverName = value;
+    else if (key == "root")
+        _root = value;
+    else if (key == "client_max_body_size")
+        _clientMaxBodySize = stringToULong(value);
+    else if (key == "index")
+        _index = value;
+    else if (key == "autoindex")
+        _autoindex = (value == "on");
+    else if (key == "error_page")
+    {
+        size_t spacePos = value.find(" ");
+        if (spacePos == std::string::npos)
+            throw std::runtime_error("ServerConfig: 'error_page' must have a code and a path."); 
+        std::string errorCodeStr = value.substr(0, spacePos);
+        std::string errorPagePath = value.substr(spacePos + 1);
+        int errorCode = stringToInt(errorCodeStr);
+        if (errorPagePath.empty())
+            throw std::runtime_error("ServerConfig: 'error_page' must include a path.");
+        _errorPages[errorCode] = errorPagePath;
+        setParameter("server_error_page_" + numberToString(errorCode), errorPagePath);
+    }
+    else
+        throw std::runtime_error("ServerConfig: Unknown directive '" + key + "' in server block.");
+}
+
+
+
 void ServerConfig::parse(std::ifstream& configFile)
 {
     std::string line;
     LocationConfig currentLocation;
     bool inLocationBlock = false;
+    int braceDepth = 0;
 
     while (std::getline(configFile, line))
     {
-        line = line.substr(0, line.find('#')); 
-        line.erase(0, line.find_first_not_of(" \t")); 
-        line.erase(line.find_last_not_of(" \t") + 1); 
+        line = line.substr(0, line.find('#'));
+        line.erase(0, line.find_first_not_of(" \t"));
+        line.erase(line.find_last_not_of(" \t") + 1);
         if (line.empty())
             continue;
+        if (line == "server {" || line == "server{")
+        {
+            braceDepth++;
+            continue;
+        }
+        
         if (line.find("location ") != std::string::npos && line.find("{") != std::string::npos)
         {
+            size_t pathStart = line.find("location ") + 9;
+            size_t pathEnd = line.find("{", pathStart);
+            std::string path = line.substr(pathStart, pathEnd - pathStart);
+            path.erase(0, path.find_first_not_of(" \t"));
+            path.erase(path.find_last_not_of(" \t;") + 1);
             currentLocation = LocationConfig();
+            currentLocation.setParameter("path", path);
+            currentLocation.setPath(path);
             inLocationBlock = true;
+            ++braceDepth;
             continue;
         }
 
         if (line == "}")
         {
-           if (inLocationBlock)
+            --braceDepth;
+            if (inLocationBlock)
             {
+                currentLocation.validate();
                 _locations.push_back(currentLocation);
                 inLocationBlock = false;
+                //currentLocation.print();
             }
+            else if (braceDepth != 0)
+                throw std::runtime_error("ServerConfig: Unmatched closing brace '}' in configuration.");
             continue;
         }
 
+        size_t delimiterPos = line.find_first_of(" \t");
+        std::string key = line.substr(0, delimiterPos);
+
+        std::string value;
+        if (delimiterPos != std::string::npos)
+            value = line.substr(delimiterPos + 1);
+        else
+            value = "";
+        value.erase(0, value.find_first_not_of(" \t"));
+        value.erase(value.find_last_not_of(" \t;") + 1);
         if (inLocationBlock)
         {
-            size_t delimiterPos = line.find(" ");
-            std::string key = line.substr(0, delimiterPos);
-            std::string value = line.substr(delimiterPos + 1);
-
             currentLocation.setParameter(key, value);
-
-            if (key == "path") currentLocation.setPath(value);
-            else if (key == "root") currentLocation.setRoot(value);
+            if (key == "root") currentLocation.setRoot(value);
             else if (key == "index") currentLocation.setIndex(value);
             else if (key == "autoindex") currentLocation.setAutoindex(value == "on");
             else if (key == "redirect") currentLocation.setRedirect(value);
             else if (key == "cgi_path") currentLocation.addCgiPath(value);
             else if (key == "cgi_ext") currentLocation.addCgiExtension(value);
             else if (key == "client_max_body_size") currentLocation.setClientMaxBodySize(stringToULong(value));
-            else if (key == "method") currentLocation.addMethod(value);
+            else if (key == "allow_methods")
+            {
+                std::istringstream methodStream(value);
+                std::string method;
+                while (methodStream >> method)
+                {
+                    currentLocation.addMethod(method);
+                }
+            }
+            else if (key == "method")
+                throw std::runtime_error("Invalid key 'method'. Did you mean 'allow_methods'?");
         }
+           
         else
         {
-            size_t delimiterPos = line.find(" ");
-            std::string key = line.substr(0, delimiterPos);
-            std::string value = line.substr(delimiterPos + 1);
-
             setParameter("server_" + key, value);
-
-            if (key == "listen")
-                _port = stringToInt(value);
-            else if (key == "server_name") _serverName = value;
-            else if (key == "root") _root = value;
-            else if (key == "client_max_body_size") _clientMaxBodySize = stringToULong(value);
-            else if (key == "index") _index = value;
-            else if (key == "autoindex") _autoindex = (value == "on");
-            else if (key == "error_page")
-            {
-                size_t spacePos = value.find(" ");
-                int errorCode = stringToInt(value.substr(0, spacePos));
-                std::string errorPage = value.substr(spacePos + 1);
-                _errorPages[errorCode] = errorPage;
-                setParameter("server_error_page_" + numberToString(errorCode), errorPage);
-            }
+            parseServerKeyValue(key, value);
         }
     }
 }
+
 
 void ServerConfig::validate() const
 {

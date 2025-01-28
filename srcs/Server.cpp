@@ -26,7 +26,7 @@ Server::Server(const ServerConfig& config): _serverFd(-1), _port(config.getPort(
         throw;
     }
 
-   // print();
+    //print();
 }
 Server::~Server()
 {
@@ -130,57 +130,57 @@ int Server::acceptClient(sockaddr_in &clientAddress)
     return (clientFd);
 }
 
-void Server::processRequest(int clientFd, const std::string& message)
-{
-    std::istringstream requestStream(message);
-    std::string method, path, version;
-    requestStream >> method >> path >> version;
-    if (method != "GET")
-    {
-        std::map<int, std::string>::iterator it = _errorPages.find(405);
-        if (it != _errorPages.end())
-        {
-            const std::string& errorPage = it->second;
-            std::cout << "Error page for 405: " << errorPage << std::endl;
-        } 
-        else 
-            std::cerr << "Error page for 405 not found in the map." << std::endl;
+// void Server::processRequest(int clientFd, const std::string& message)
+// {
+//     std::istringstream requestStream(message);
+//     std::string method, path, version;
+//     requestStream >> method >> path >> version;
+//     if (method != "GET")
+//     {
+//         std::map<int, std::string>::iterator it = _errorPages.find(405);
+//         if (it != _errorPages.end())
+//         {
+//             const std::string& errorPage = it->second;
+//             std::cout << "Error page for 405: " << errorPage << std::endl;
+//         } 
+//         else 
+//             std::cerr << "Error page for 405 not found in the map." << std::endl;
 
-    }
-    if (path == "/")
-        path = _root + _index;
-    std::ifstream file(path.c_str());
-    if (!file.is_open())
-    {
-        std::map<int, std::string>::iterator it = _errorPages.find(404);
-        if (it != _errorPages.end())
-            sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n" + it->second);
-        else
-            sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n");
-        return;
-    }
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-    file.close();
-    std::ostringstream response;
-    response << "HTTP/1.1 200 OK\r\n"
-             << "Content-Type: text/html\r\n"
-             << "Content-Length: " << content.size() << "\r\n"
-             << "\r\n" 
-             << content;
-    sendHttpResponse(clientFd, response.str());
-}
+//     }
+//     if (path == "/")
+//         path = _root + _index;
+//     std::ifstream file(path.c_str());
+//     if (!file.is_open())
+//     {
+//         std::map<int, std::string>::iterator it = _errorPages.find(404);
+//         if (it != _errorPages.end())
+//             sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n" + it->second);
+//         else
+//             sendHttpResponse(clientFd, "HTTP/1.1 404 Not Found\r\n\r\n");
+//         return;
+//     }
+//     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+//     file.close();
+//     std::ostringstream response;
+//     response << "HTTP/1.1 200 OK\r\n"
+//              << "Content-Type: text/html\r\n"
+//              << "Content-Length: " << content.size() << "\r\n"
+//              << "\r\n" 
+//              << content;
+//     sendHttpResponse(clientFd, response.str());
+// }
 
-void Server::sendHttpResponse(int clientFd, const std::string &response)
-{
-    ssize_t bytesSent = send(clientFd, response.c_str(), response.size(), 0);
-    if (bytesSent == -1) {
-        std::cerr << "Error sending response to client (fd: " << clientFd
-                  << "): " << strerror(errno) << std::endl;
-    } else {
-        std::cout << "Response sent to client (fd: " << clientFd
-                  << ") [" << bytesSent << " bytes]" << std::endl;
-    }
-}
+// void Server::sendHttpResponse(int clientFd, const std::string &response)
+// {
+//     ssize_t bytesSent = send(clientFd, response.c_str(), response.size(), 0);
+//     if (bytesSent == -1) {
+//         std::cerr << "Error sending response to client (fd: " << clientFd
+//                   << "): " << strerror(errno) << std::endl;
+//     } else {
+//         std::cout << "Response sent to client (fd: " << clientFd
+//                   << ") [" << bytesSent << " bytes]" << std::endl;
+//     }
+// }
 
 
 void Server::handleClientEvent(int clientFd)
@@ -199,12 +199,25 @@ void Server::handleClientEvent(int clientFd)
     }
     else
     {
-        std::string message(buffer, bytesReceived);
-       // std::cout << "Client " << clientFd << " says: " << message << std::endl;
-        processRequest(clientFd, message);
-        //std::string response = "Message received: " + message;
-        //if (send(clientFd, response.c_str(), response.size(), 0) == -1)
-           // std::cerr << "Error sending message to client (fd: " << clientFd << "): " << strerror(errno) << std::endl;
+        std::string rawRequest(buffer, bytesReceived);
+        try
+        {
+            HttpRequestParser parser;
+            parser.parseRequest(rawRequest);
+            std::cout << "Request parsed successfully!" << std::endl;
+            std::cout << "Method: " << parser.getMethod() << std::endl;
+            std::cout << "Path: " << parser.getPath() << std::endl;
+            std::string filePath = _root + "/" + _index;
+            std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello, world!";
+            if (send(clientFd, response.c_str(), response.size(), 0) == -1)
+                std::cerr << "Error sending message to client (fd: " << clientFd << "): " << strerror(errno) << std::endl;
+        }
+        catch (const std::exception& e)
+        {
+            std::cerr << "Error parsing request: " << e.what() << std::endl;
+            std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+            send(clientFd, response.c_str(), response.size(), 0);
+        }
     }
 }
 

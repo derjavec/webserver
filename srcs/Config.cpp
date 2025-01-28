@@ -28,45 +28,46 @@ const std::string& Config::getParameter(const std::string& key) const
     return it->second;
 }
 
-bool Config::validateConfigFile(const std::string& filename) {
-    if (filename.substr(filename.find_last_of(".") + 1) != "conf")
+bool Config::validateConfigFile(const std::string& filePath, std::ifstream& configFile)
+{
+    size_t dotPos = filePath.rfind('.');
+    if (dotPos == std::string::npos || (filePath.substr(dotPos) != ".conf" && filePath.substr(dotPos) != ".config"))
     {
-        std::cerr << "Error: Config file must have a .conf extension." << std::endl;
+        std::cerr << "Error: Configuration file must have a .conf or .config extension." << std::endl;
         return false;
     }
-
-    std::ifstream configFile(filename.c_str());
     if (!configFile.is_open())
-    {
-        std::cerr << "Error: Unable to open config file." << std::endl;
-        return false;
-    }
-
+        throw std::runtime_error("Error: Configuration file could not be opened.");
     if (configFile.peek() == std::ifstream::traits_type::eof())
-    {
-        std::cerr << "Error: Config file is empty." << std::endl;
-        return false;
-    }
-
+        throw std::runtime_error("Error: Configuration file is empty.");
     std::string line;
-    bool hasListen = false, hasServerName = false, hasRoot = false;
+    int openBraces = 0;
     while (std::getline(configFile, line))
     {
-        line = line.substr(0, line.find('#'));
-        if (line.find("listen") != std::string::npos) hasListen = true;
-        if (line.find("server_name") != std::string::npos) hasServerName = true;
-        if (line.find("root") != std::string::npos) hasRoot = true;
-    }
-    configFile.close();
+        for (size_t i = 0; i < line.size(); ++i)
+        {
+            if (line[i] == '{') 
+                ++openBraces;
+            else if (line[i] == '}')
+                --openBraces;
 
-    if (!hasListen || !hasServerName || !hasRoot)
+            if (openBraces < 0)
+            {
+                std::cerr << "Error: Unbalanced braces in configuration file." << std::endl;
+                return false;
+            }
+        }
+    }
+    if (openBraces != 0)
     {
-        std::cerr << "Error: Config file must contain 'listen', 'server_name', and 'root' directives." << std::endl;
+        std::cerr << "Error: Unbalanced braces in configuration file." << std::endl;
         return false;
     }
-
+    configFile.clear();
+    configFile.seekg(0);
     return true;
 }
+
 
 int Config::stringToInt(const std::string& str)
 {
