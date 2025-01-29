@@ -50,6 +50,7 @@ void HttpRequestParser::parseRequestLine(const std::string& line)
     _version = version;
     if (_version != "HTTP/1.1")
         throw std::runtime_error("Invalid request: Unsupported HTTP version.");
+    _fileType = getContentType(_path);
 }
 
 void HttpRequestParser::parseHeader(const std::string& line)
@@ -82,8 +83,33 @@ int HttpRequestParser::stringToInt(const std::string& str)
     return value;
 }
 
+std::string HttpRequestParser::getContentType(const std::string& filePath)
+{
+    if (!filePath.empty() && filePath[filePath.size() - 1] == '/')
+        return "text/html";
+    size_t dotPos = filePath.find_last_of(".");
+    if (dotPos == std::string::npos)
+        return "application/octet-stream";
+    std::string extension = filePath.substr(dotPos + 1);
+    if (extension == "html") return "text/html";
+    if (extension == "css") return "text/css";
+    if (extension == "js") return "application/javascript";
+    if (extension == "png") return "image/png";
+    if (extension == "jpg" || extension == "jpeg") return "image/jpeg";
+    if (extension == "gif") return "image/gif";
+    if (extension == "svg") return "image/svg+xml";
+    if (extension == "ico") return "image/x-icon";
+    if (extension == "json") return "application/json";
+    if (extension == "xml") return "application/xml";
+    if (extension == "pdf") return "application/pdf";
+    if (extension == "txt") return "text/plain";
+    return "application/octet-stream";
+}
+
+
 HttpMethod HttpRequestParser::getMethod() const { return _method; }
 std::string HttpRequestParser::getPath() const { return _path; }
+std::string HttpRequestParser::getType() const { return _fileType; }
 std::string HttpRequestParser::getVersion() const { return _version; }
 std::map<std::string, std::string> HttpRequestParser::getHeaders() const { return _headers; }
 std::string HttpRequestParser::getBody() const { return _body; }

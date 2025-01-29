@@ -12,6 +12,7 @@
 # include <fstream>
 # include <map>
 # include <vector>
+# include <dirent.h>
 
 //connections
 # include <sys/socket.h>

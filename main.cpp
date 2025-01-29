@@ -1,5 +1,4 @@
 #include "Webserver.hpp"
-#include "Client.hpp"
 #include "Server.hpp"
 #include "Config.hpp"
 #include "ServerConfig.hpp"

@@ -14,7 +14,6 @@ UTILS_DIR = srcs
 INCLUDES_DIR = Includes
 
 SRC = $(SRC_DIR)/main.cpp \
-	  $(UTILS_DIR)/Client.cpp \
 	  $(UTILS_DIR)/Server.cpp \
 	  $(UTILS_DIR)/Config.cpp \
 	  $(UTILS_DIR)/ServerConfig.cpp \

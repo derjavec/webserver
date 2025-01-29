@@ -75,7 +75,14 @@ void ServerConfig::parseServerKeyValue(const std::string& key, const std::string
     else if (key == "index")
         _index = value;
     else if (key == "autoindex")
-        _autoindex = (value == "on");
+    {
+        if (value == "on")
+            _autoindex = true;
+        else if (value == "off")
+            _autoindex = false;
+        else
+            throw std::runtime_error("Invalid value for 'autoindex'. Expected 'on' or 'off'.");
+    }
     else if (key == "error_page")
     {
         size_t spacePos = value.find(" ");
@@ -160,7 +167,16 @@ void ServerConfig::parse(std::ifstream& configFile)
             currentLocation.setParameter(key, value);
             if (key == "root") currentLocation.setRoot(value);
             else if (key == "index") currentLocation.setIndex(value);
-            else if (key == "autoindex") currentLocation.setAutoindex(value == "on");
+            else if (key == "autoindex")
+            {
+                std::cout << currentLocation.getPath() << " " << value << std::endl;
+                if (value == "on")
+                    currentLocation.setAutoindex(true);
+                else if (value == "off")
+                    currentLocation.setAutoindex(false);
+                else
+                    throw std::runtime_error("Invalid value for 'autoindex'. Expected 'on' or 'off'.");
+            }
             else if (key == "redirect") currentLocation.setRedirect(value);
             else if (key == "cgi_path") currentLocation.addCgiPath(value);
             else if (key == "cgi_ext") currentLocation.addCgiExtension(value);
