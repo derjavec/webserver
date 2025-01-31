@@ -217,10 +217,11 @@ void Server::handleAutoIndex(int clientFd, bool autoindexEnabled, std::string pa
     return ;
 }
 
-int Server::handleFoldersRequests(int clientFd, std::string path, std::string filePath)
+void Server::handleFoldersRequests(int clientFd, std::string path, std::string filePath, std::string fileType)
 {
     std::string locationIndex;
     bool autoindexEnabled = false;
+    bool found = false;
     for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it)
     {
         if (normalizePath(path) == normalizePath(it->getPath()))
@@ -228,17 +229,98 @@ int Server::handleFoldersRequests(int clientFd, std::string path, std::string fi
             locationIndex = it->getIndex();
             filePath = _root + path + locationIndex;
             autoindexEnabled = it->isAutoindexEnabled();
+            found = true;
             break;
         }
+
+    }
+    if (!found)
+    {
+         handleErrors(clientFd, 404);
+         return ;
     }
     if (locationIndex.empty())
     {
         handleAutoIndex(clientFd, autoindexEnabled, path);
-        return 1;
+        return ;
     }
-    return 0;       
+    else
+    {
+        filePath = _root + path + locationIndex;
+        std::ifstream file(filePath.c_str());
+        if (file.is_open())
+        {
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            std::string content = buffer.str();
+            file.close();
+            std::string response = "HTTP/1.1 200 OK\r\n";
+            response += "Content-Type: "+ fileType + "\r\n";
+            response += "Content-Length: " + numberToString(content.size()) + "\r\n";
+            response += "\r\n";
+            response += content;
+            if (send(clientFd, response.c_str(), response.size(), 0) == -1)
+                std::cerr << "Error sending message to client (fd: " << clientFd << "): " << strerror(errno) << std::endl;
+        }
+
+    }
 }
 
+void Server::handleFileUpload(int clientFd, const std::string& request)
+{
+    std::string boundary;
+    std::string filename;
+    std::string fileContent;
+    
+    size_t boundaryPos = request.find("boundary=");
+    if (boundaryPos == std::string::npos)
+    {
+        std::cerr << "No boundary found in request" << std::endl;
+        return;
+    }
+    boundary = "--" + request.substr(boundaryPos + 9);
+
+    size_t filenamePos = request.find("filename=\"");
+    if (filenamePos != std::string::npos)
+    {
+        filenamePos += 10;
+        size_t endPos = request.find("\"", filenamePos);
+        filename = request.substr(filenamePos, endPos - filenamePos);
+    } 
+    else
+    {
+        std::cerr << "No filename found" << std::endl;
+        return;
+    }
+
+    size_t fileStart = request.find("\r\n\r\n", filenamePos) + 4;
+    size_t fileEnd = request.find(boundary, fileStart) - 2;
+    fileContent = request.substr(fileStart, fileEnd - fileStart);
+    for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it)
+    {
+        if (normalizePath(it->getPath()) == "/upload")
+        {
+            std::string filePath = "www/upload/" + filename;
+            std::ofstream outFile(filePath.c_str(), std::ios::binary);
+            if (!outFile)
+            {
+                std::cerr << "Error opening file for writing" << std::endl;
+                return;
+            }
+            outFile.write(fileContent.c_str(), fileContent.size());
+            outFile.close();
+
+            std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+            response += "<h1>Upload Successful</h1>";
+            response += "<p>File uploaded: " + filename + "</p>";
+            send(clientFd, response.c_str(), response.size(), 0);
+        }
+        else
+            handleErrors(clientFd, 404);
+
+    }
+    
+}
 
 void Server::answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer)
 {
@@ -252,16 +334,25 @@ void Server::answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer
         std::cout << "Path: " << parser.getPath() << std::endl;
         std::string filePath;
         std::string fileType = parser.getType();
+        if (parser.ToString(parser.getMethod()) == "POST" && parser.getPath() == "/upload")
+        {
+            handleFileUpload(clientFd, rawRequest);
+            return;
+        }
         if (parser.getPath() == "/" )
             filePath = _root + "/" + _index;
         else if (parser.getPath()[parser.getPath().size() - 1] == '/')
         {
-            if(handleFoldersRequests(clientFd, parser.getPath(), filePath))
-                return ;
-        }    
+            std::cout << "entra 0" << std::endl;
+            handleFoldersRequests(clientFd, parser.getPath(), filePath, fileType);
+            return ;
+        }
+        else if (fileType == "text/html")
+            filePath = _root + "/html"+parser.getPath();   
         else
             filePath = _root + parser.getPath();
         std::ifstream file(filePath.c_str());
+        std::cout << "filepath" << filePath << std::endl;
         if (file.is_open())
         {
             std::stringstream buffer;

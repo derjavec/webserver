@@ -4,7 +4,7 @@
 #include "Webserver.hpp"
 #include "Config.hpp"
 
-enum HttpMethod { GET, POST, DELETE, INVALID };
+enum HttpMethod { GET, POST, DELETE, PUT, INVALID };
 
 class HttpRequestParser
 {
@@ -32,6 +32,7 @@ class HttpRequestParser
     void validateRequest() const;
     std::string getContentType(const std::string& filePath);
     int stringToInt(const std::string& str);
+    std::string ToString(HttpMethod method);
 
     HttpMethod stringToMethod(const std::string& methodStr) const;
 };

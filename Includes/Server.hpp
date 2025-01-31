@@ -38,7 +38,8 @@ class Server
         int acceptClient(sockaddr_in &clientAddress);
         void handleClientEvent(int clientFd);
         void answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer);
-        int handleFoldersRequests(int clientFd, std::string path, std::string filePath);
+        void handleFileUpload(int clientFd, const std::string& request);
+        void handleFoldersRequests(int clientFd, std::string path, std::string filePath, std::string fileType);
         void handleAutoIndex(int clientFd, bool autoindexEnabled, std::string path);
         std::string generateAutoindexPage(const std::string& directoryPath);
         void handleErrors(int clientFd, int code);

@@ -31,6 +31,8 @@ HttpMethod HttpRequestParser::stringToMethod(const std::string& methodStr) const
         return GET;
     if (methodStr == "POST")
         return POST;
+    if (methodStr == "PUT")
+        return PUT;
     if (methodStr == "DELETE")
         return DELETE;
     return INVALID;
@@ -106,6 +108,17 @@ std::string HttpRequestParser::getContentType(const std::string& filePath)
     return "application/octet-stream";
 }
 
+std::string HttpRequestParser::ToString(HttpMethod method)
+{
+    switch (method)
+    {
+        case GET: return "GET";
+        case POST: return "POST";
+        case PUT: return "PUT";
+        case DELETE: return "DELETE";
+        default: return "UNKNOWN";
+    }
+}
 
 HttpMethod HttpRequestParser::getMethod() const { return _method; }
 std::string HttpRequestParser::getPath() const { return _path; }
