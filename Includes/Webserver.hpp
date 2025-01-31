@@ -6,6 +6,7 @@
 # include <cstring>
 # include <iostream>
 # include <unistd.h>
+# include <cstdlib>
 # include <cerrno>
 # include <exception>
 # include <sstream>
@@ -13,6 +14,11 @@
 # include <map>
 # include <vector>
 # include <dirent.h>
+
+
+//cgi
+# include <sys/types.h>
+# include <sys/wait.h>
 
 //connections
 # include <sys/socket.h>

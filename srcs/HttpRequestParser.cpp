@@ -92,19 +92,31 @@ std::string HttpRequestParser::getContentType(const std::string& filePath)
     size_t dotPos = filePath.find_last_of(".");
     if (dotPos == std::string::npos)
         return "application/octet-stream";
+    static std::map<std::string, std::string> mimeTypes;
+    if (mimeTypes.empty())
+    {
+        mimeTypes.insert(std::make_pair("html", "text/html"));
+        mimeTypes.insert(std::make_pair("css", "text/css"));
+        mimeTypes.insert(std::make_pair("js", "application/javascript"));
+        mimeTypes.insert(std::make_pair("jpg", "image/jpeg"));
+        mimeTypes.insert(std::make_pair("jpeg", "image/jpeg"));
+        mimeTypes.insert(std::make_pair("png", "image/png"));
+        mimeTypes.insert(std::make_pair("gif", "image/gif"));
+        mimeTypes.insert(std::make_pair("ico", "image/x-icon"));
+        mimeTypes.insert(std::make_pair("json", "application/json"));
+        mimeTypes.insert(std::make_pair("xml", "application/xml"));
+        mimeTypes.insert(std::make_pair("pdf", "application/pdf"));
+        mimeTypes.insert(std::make_pair("txt", "text/plain"));
+        mimeTypes.insert(std::make_pair("mp4", "video/mp4"));
+        mimeTypes.insert(std::make_pair("webm", "video/webm"));
+        mimeTypes.insert(std::make_pair("ogg", "video/ogg"));
+        mimeTypes.insert(std::make_pair("mp3", "audio/mpeg"));
+        mimeTypes.insert(std::make_pair("wav", "audio/wav"));
+    }
     std::string extension = filePath.substr(dotPos + 1);
-    if (extension == "html") return "text/html";
-    if (extension == "css") return "text/css";
-    if (extension == "js") return "application/javascript";
-    if (extension == "png") return "image/png";
-    if (extension == "jpg" || extension == "jpeg") return "image/jpeg";
-    if (extension == "gif") return "image/gif";
-    if (extension == "svg") return "image/svg+xml";
-    if (extension == "ico") return "image/x-icon";
-    if (extension == "json") return "application/json";
-    if (extension == "xml") return "application/xml";
-    if (extension == "pdf") return "application/pdf";
-    if (extension == "txt") return "text/plain";
+    std::map<std::string, std::string>::const_iterator it = mimeTypes.find(extension);
+    if (it != mimeTypes.end())
+        return it->second;
     return "application/octet-stream";
 }
 

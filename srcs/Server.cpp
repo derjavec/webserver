@@ -322,6 +322,61 @@ void Server::handleFileUpload(int clientFd, const std::string& request)
     
 }
 
+void Server::executeCGI(int clientFd, const std::string &scriptPath)
+{
+    int pipefd[2];
+    if (pipe(pipefd) == -1)
+    {
+        std::cerr << "Error creating pipe" << std::endl;
+        return;
+    }
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+        std::cerr << "Error forking process" << std::endl;
+        return;
+    }
+    if (pid == 0)
+    { 
+        dup2(pipefd[1], STDOUT_FILENO);
+        close(pipefd[0]);
+        char *argv[] = { (char *)"/usr/bin/php-cgi", (char *)scriptPath.c_str(), NULL };
+        char *envp[] = { NULL };
+        execve(argv[0], argv, envp);
+        std::cerr << "Error executing CGI script" << std::endl;
+        exit(1);
+    } 
+    else
+    { 
+        close(pipefd[1]);   
+        char buffer[1024];
+        std::string httpResponse = "HTTP/1.1 200 OK\r\n";
+        std::stringstream response;
+        ssize_t bytesRead;
+        while ((bytesRead = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0)
+        {
+            buffer[bytesRead] = '\0';
+            response << buffer;
+        }
+        close(pipefd[0]);
+        waitpid(pid, NULL, 0);
+        std::string cgiOutput = response.str();
+        size_t pos = cgiOutput.find("Content-Type:");
+        if (pos != std::string::npos)
+        {
+            size_t end = cgiOutput.find("\r\n", pos);
+            std::string contentType = cgiOutput.substr(pos, end - pos + 2);
+            httpResponse += contentType;
+            cgiOutput = cgiOutput.substr(end + 2);
+        }
+        else
+            httpResponse += "Content-Type: text/html\r\n";
+        httpResponse += "Content-Length: " + numberToString(response.str().size()) + "\r\n\r\n";
+        httpResponse += response.str();
+        send(clientFd, httpResponse.c_str(), httpResponse.size(), 0);
+    }
+}
+
 void Server::answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer)
 {
     std::string rawRequest(buffer, bytesReceived);
@@ -337,6 +392,11 @@ void Server::answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer
         if (parser.ToString(parser.getMethod()) == "POST" && parser.getPath() == "/upload")
         {
             handleFileUpload(clientFd, rawRequest);
+            return;
+        }
+        if (parser.getPath().find(".php") != std::string::npos)
+        {
+            executeCGI(clientFd, parser.getPath());
             return;
         }
         if (parser.getPath() == "/" )
