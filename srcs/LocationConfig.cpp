@@ -2,7 +2,7 @@
 
 LocationConfig::LocationConfig() : _autoindex(false), _clientMaxBodySize(1048576) {}
 LocationConfig::~LocationConfig() {}
-LocationConfig::LocationConfig(const LocationConfig& obj)
+LocationConfig::LocationConfig(const LocationConfig& obj) : Config(obj)
 {
     *this = obj;
 }

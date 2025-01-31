@@ -25,7 +25,7 @@ Server::Server(const ServerConfig& config): _serverFd(-1), _port(config.getPort(
         throw;
     }
 
-    print();
+   // print();
 }
 Server::~Server()
 {

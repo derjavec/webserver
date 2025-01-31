@@ -2,7 +2,7 @@
 
 ServerConfig::ServerConfig(): _port(8080), _serverName("localhost"), _root("./"), _clientMaxBodySize(1048576), _index("index.html"), _autoindex(false) {}
 ServerConfig::~ServerConfig(){}
-ServerConfig::ServerConfig(const ServerConfig& obj)
+ServerConfig::ServerConfig(const ServerConfig& obj): Config(obj)
 {
     *this = obj;
 }
