@@ -217,11 +217,12 @@ void Server::handleAutoIndex(int clientFd, bool autoindexEnabled, std::string pa
     return ;
 }
 
-void Server::handleFoldersRequests(int clientFd, std::string path, std::string filePath, std::string fileType)
+void Server::handleFoldersRequests(int clientFd, const std::string &path, const std::string &fileType)
 {
     std::string locationIndex;
     bool autoindexEnabled = false;
     bool found = false;
+    std::string filePath;
     for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it)
     {
         if (normalizePath(path) == normalizePath(it->getPath()))
@@ -322,7 +323,7 @@ void Server::handleFileUpload(int clientFd, const std::string& request)
     
 }
 
-void Server::executeCGI(int clientFd, const std::string &scriptPath)
+void Server::executeCGI(int clientFd, const std::string &scriptPath, const std::string &method, const std::string &body)
 {
     int pipefd[2];
     if (pipe(pipefd) == -1)
@@ -340,10 +341,34 @@ void Server::executeCGI(int clientFd, const std::string &scriptPath)
     { 
         dup2(pipefd[1], STDOUT_FILENO);
         close(pipefd[0]);
-        char *argv[] = { (char *)"/usr/bin/php-cgi", (char *)scriptPath.c_str(), NULL };
-        char *envp[] = { NULL };
+        char *argv[] = { NULL, (char *)scriptPath.c_str(), NULL};
+        if (scriptPath.find(".php") != std::string::npos)
+            argv[0] = (char *)"/usr/bin/php-cgi";
+        else if (scriptPath.find(".py") != std::string::npos)
+            argv[0] = (char *)"/usr/bin/python3";
+        std::string scriptFilename = "SCRIPT_FILENAME=" + scriptPath;
+        std::string requestMethod = "REQUEST_METHOD=" + method;
+        std::string redirectStatus = "REDIRECT_STATUS=200";
+        std::string contentLength = "CONTENT_LENGTH=" + numberToString(body.size());
+        char *envp[] =
+        {
+            (char *)scriptFilename.c_str(),
+            (char *)requestMethod.c_str(),
+            (char *)redirectStatus.c_str(),
+            NULL
+        };
+        if (method == "POST")
+        {
+            int postPipe[2];
+            pipe(postPipe);
+            write(postPipe[1], body.c_str(), body.size());
+            close(postPipe[1]);
+
+            dup2(postPipe[0], STDIN_FILENO);
+            close(postPipe[0]);
+        }
         execve(argv[0], argv, envp);
-        std::cerr << "Error executing CGI script" << std::endl;
+        std::cerr << "Error executing script" << std::endl;
         exit(1);
     } 
     else
@@ -386,25 +411,27 @@ void Server::answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer
         parser.parseRequest(rawRequest);
         std::cout << "Request parsed successfully!" << std::endl;
         std::cout << "Method: " << parser.getMethod() << std::endl;
-        std::cout << "Path: " << parser.getPath() << std::endl;
-        std::string filePath;
+        std::cout << "Path: " << _root + parser.getPath() << std::endl;
+        std::string filePath = _root + parser.getPath();
+        size_t pos = filePath.find("?");
+        if (pos != std::string::npos)
+            filePath = filePath.substr(0, pos);
         std::string fileType = parser.getType();
         if (parser.ToString(parser.getMethod()) == "POST" && parser.getPath() == "/upload")
         {
             handleFileUpload(clientFd, rawRequest);
             return;
         }
-        if (parser.getPath().find(".php") != std::string::npos)
+        if (parser.getPath().find(".php") != std::string::npos || parser.getPath().find(".py") != std::string::npos)
         {
-            executeCGI(clientFd, parser.getPath());
+            executeCGI(clientFd, filePath, parser.ToString(parser.getMethod()), parser.getBody());
             return;
         }
         if (parser.getPath() == "/" )
             filePath = _root + "/" + _index;
-        else if (parser.getPath()[parser.getPath().size() - 1] == '/')
+        else if (filePath[parser.getPath().size() - 1] == '/')
         {
-            std::cout << "entra 0" << std::endl;
-            handleFoldersRequests(clientFd, parser.getPath(), filePath, fileType);
+            handleFoldersRequests(clientFd, parser.getPath(), fileType);
             return ;
         }
         else if (fileType == "text/html")

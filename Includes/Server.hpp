@@ -39,8 +39,8 @@ class Server
         void handleClientEvent(int clientFd);
         void answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer);
         void handleFileUpload(int clientFd, const std::string& request);
-        void handleFoldersRequests(int clientFd, std::string path, std::string filePath, std::string fileType);
-        void executeCGI(int clientFd, const std::string &scriptPath);
+        void handleFoldersRequests(int clientFd, const std::string &path, const std::string &fileType);
+        void executeCGI(int clientFd, const std::string &scriptPath, const std::string &method, const std::string &body);
         void handleAutoIndex(int clientFd, bool autoindexEnabled, std::string path);
         std::string generateAutoindexPage(const std::string& directoryPath);
         void handleErrors(int clientFd, int code);
