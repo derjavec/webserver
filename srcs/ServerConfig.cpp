@@ -2,7 +2,7 @@
 
 ServerConfig::ServerConfig(): _port(8080), _serverName("localhost"), _root("./"), _clientMaxBodySize(1048576), _index("index.html"), _autoindex(false) {}
 ServerConfig::~ServerConfig(){}
-ServerConfig::ServerConfig(const ServerConfig& obj)
+ServerConfig::ServerConfig(const ServerConfig& obj): Config(obj)
 {
     *this = obj;
 }
@@ -40,31 +40,38 @@ void ServerConfig::setAutoindex(bool autoindex) { _autoindex = autoindex; }
 void ServerConfig::addErrorPage(int code, const std::string& path) { _errorPages[code] = path; }
 void ServerConfig::addLocation(const LocationConfig& location) {_locations.push_back(location);}
 
-void ServerConfig::validateSingleValue(const std::string& key, const std::string& value)
-{
+void ServerConfig::validateSingleValue(const std::string& key, const std::string& value) {
     if (key == "error_page")
         return;
-    size_t spacePos = value.find(" ");
-    if (spacePos != std::string::npos)
-    {
-        std::string extra = value.substr(spacePos + 1);
-        extra.erase(0, extra.find_first_not_of(" \t"));
-        extra.erase(extra.find_last_not_of(" \t") + 1);
-        if (!extra.empty() && extra != ";")
-            throw std::runtime_error("ServerConfig: Parameter '" + key + "' contains invalid extra values: " + extra);
+    
+    if (key != "listen") {
+        size_t spacePos = value.find(" ");
+        if (spacePos != std::string::npos)
+        {
+            std::string extra = value.substr(spacePos + 1);
+            extra.erase(0, extra.find_first_not_of(" \t"));
+            extra.erase(extra.find_last_not_of(" \t") + 1);
+            if (!extra.empty() && extra != ";")
+                throw std::runtime_error("ServerConfig: Parameter '" + key + "' contains invalid extra values: " + extra);
+        }
     }
 }
-
+const std::vector<uint16_t>& ServerConfig::getPorts(void) const {
+	return (this->_ports);
+}
 
 void ServerConfig::parseServerKeyValue(const std::string& key, const std::string& value)
 {
     validateSingleValue(key, value);
-    if (key == "listen")
-    {
-        int port = stringToInt(value);
-        if (port < 0 || port > 65535)
-            throw std::runtime_error("ServerConfig: Invalid port number. Must be between 0 and 65535.");
-        _port = port;
+    if (key == "listen"){
+    	std::istringstream iss(value);
+	std::string token;
+	while (iss >> token){
+		int port = stringToInt(token);
+		if (port < 0 || port > 65635)
+			throw std::runtime_error("ServerConfig: Invalid port number:" + token);
+		_ports.push_back(static_cast<uint16_t>(port));
+	}
     }
     else if (key == "server_name")
         _serverName = value;
@@ -145,7 +152,7 @@ void ServerConfig::parse(std::ifstream& configFile)
                 currentLocation.validate();
                 _locations.push_back(currentLocation);
                 inLocationBlock = false;
-                //currentLocation.print();
+               // currentLocation.print();
             }
             else if (braceDepth != 0)
                 throw std::runtime_error("ServerConfig: Unmatched closing brace '}' in configuration.");
@@ -211,6 +218,8 @@ void ServerConfig::validate() const
         throw std::runtime_error("ServerConfig: Missing 'root' parameter.");
     if (parameters.find("server_index") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'index' parameter.");
+    if (!directoryExists(_root))
+        throw std::runtime_error("ServerConfig: Root directory does not exist: " + _root);
 }
 
 void ServerConfig::print() const

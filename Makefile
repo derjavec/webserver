@@ -12,15 +12,18 @@ PASTEL_LILAC = \033[38;5;183m
 SRC_DIR = .
 UTILS_DIR = srcs
 INCLUDES_DIR = Includes
+OBJ_DIR = obj/
 
 SRC = $(SRC_DIR)/main.cpp \
 	  $(UTILS_DIR)/Server.cpp \
+	  $(UTILS_DIR)/ServerUtils.cpp \
 	  $(UTILS_DIR)/Config.cpp \
 	  $(UTILS_DIR)/ServerConfig.cpp \
 	  $(UTILS_DIR)/LocationConfig.cpp \
 	  $(UTILS_DIR)/HttpRequestParser.cpp \
+	  $(UTILS_DIR)/FDStreamBuf.cpp \
 
-OBJ = $(SRC:.cpp=.o)
+OBJ = $(SRC:$(UTILS_DIR)%.cpp=$(OBJ_DIR)%.o)
 
 all: $(NAME)
 
@@ -29,12 +32,13 @@ $(NAME): $(OBJ)
 	@$(CXX) $(CXXFLAGS) -o $(NAME) $(OBJ)
 	@echo "$(PASTEL_GREEN)Build complete! 🎉 Executable created: $(NAME)$(RESET)"
 
-%.o: %.cpp
+$(OBJ_DIR)%.o: $(UTILS_DIR)%.cpp
 	@echo "$(PASTEL_YELLOW)Compiling $<...$(RESET)"
+	@mkdir -p $(@D)
 	@$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	@rm -f $(OBJ)
+	@rm -rf $(OBJ_DIR)
 	@echo "$(PASTEL_YELLOW)Cleaning object files... ✔️$(RESET)"
 
 fclean: clean

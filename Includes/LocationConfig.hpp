@@ -3,6 +3,7 @@
 
 #include "Webserver.hpp"
 #include "Config.hpp"
+#include "ServerUtils.hpp"
 
 class LocationConfig : public Config
 {

@@ -3,11 +3,13 @@
 
 #include "Webserver.hpp"
 #include "Config.hpp"
+#include "ServerUtils.hpp"
 #include "LocationConfig.hpp"
 
 class ServerConfig : public Config
 {   
     private:
+	    std::vector<uint16_t> _ports;
         uint16_t _port;
         std::string _serverName;
         std::string _root;
@@ -25,8 +27,13 @@ class ServerConfig : public Config
 
         void parse(std::ifstream& configFile);
         void validateSingleValue(const std::string& key, const std::string& value);
-        void parseServerKeyValue(const std::string& key, const std::string& value);
-        void validate() const;
+        
+	
+	const std::vector<uint16_t>& getPorts(void) const;
+	
+	
+	void parseServerKeyValue(const std::string& key, const std::string& value);
+	void validate() const;
 
         void setPort(uint16_t port);
         uint16_t getPort() const;
@@ -51,7 +58,6 @@ class ServerConfig : public Config
 
         void addLocation(const LocationConfig& location);
         const std::vector<LocationConfig>& getLocations() const;
-
 
         void print() const;
 };

@@ -2,7 +2,7 @@
 
 LocationConfig::LocationConfig() : _autoindex(false), _clientMaxBodySize(1048576) {}
 LocationConfig::~LocationConfig() {}
-LocationConfig::LocationConfig(const LocationConfig& obj)
+LocationConfig::LocationConfig(const LocationConfig& obj) : Config(obj)
 {
     *this = obj;
 }
@@ -44,14 +44,22 @@ const std::string& LocationConfig::getRedirect() const { return _redirect; }
 unsigned long LocationConfig::getClientMaxBodySize() const { return _clientMaxBodySize; }
 const std::vector<std::string>& LocationConfig::getMethods() const { return _methods; }
 
+
 void LocationConfig::validate() const
 {
     if (parameters.find("path") == parameters.end())
         throw std::runtime_error("LocationConfig: Missing 'path' parameter.");
     if (parameters.at("path").empty() && parameters.at("path") != "/")
         throw std::runtime_error("LocationConfig: 'path' parameter is empty or invalid.");
-    if (parameters.find("root") == parameters.end() || parameters.at("root").empty())
-        throw std::runtime_error("LocationConfig: Missing or empty 'root' parameter.");
+
+    if (parameters.find("redirect") == parameters.end())
+    {
+        if (parameters.find("root") == parameters.end() || parameters.at("root").empty())
+            throw std::runtime_error("LocationConfig: Missing or empty 'root' parameter.");
+        if (!directoryExists(getRoot()))
+            throw std::runtime_error("LocationConfig: The specified root directory does not exist: " + getRoot());
+    }
+
     if (parameters.find("autoindex") != parameters.end())
     {
         const std::string& autoindex = parameters.at("autoindex");
@@ -71,7 +79,6 @@ void LocationConfig::validate() const
             throw std::runtime_error("LocationConfig: Invalid value for 'client_max_body_size'. Must be a positive number.");
         }
     }
-
     if (parameters.find("methods") != parameters.end())
     {
         const std::string& methods = parameters.at("methods");
@@ -92,8 +99,8 @@ void LocationConfig::validate() const
         throw std::runtime_error("LocationConfig: 'redirect' is defined but empty.");
 
     std::cout << "LocationConfig validated successfully: " << parameters.at("path") << std::endl;
-    
 }
+
 
 void LocationConfig::print() const
 {

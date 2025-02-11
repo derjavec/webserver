@@ -7,10 +7,12 @@
 
 int main(int argc, char **argv)
 {
-     if (argc != 2)
+     if (argc > 2)
     {
         std::cerr << "Usage: " << argv[0] << " <config_file.conf>" << std::endl;
         return 1;
+    } else if (argc == 1){
+    	argv[1] = (char*)"Config/default.conf";
     }
 
     std::string configFilePath = argv[1];

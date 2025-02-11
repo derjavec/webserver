@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Scripts</title>
+</head>
+<body>
+    <h1>Test Script Execution</h1>
+    <p>Click a button to test a script:</p>
+
+    <!-- PHP Test GET-->
+    <form action="cgi-bin/test.php" method="GET">
+        <input type="submit" value="Run PHP Script">
+    </form>
+
+     <!-- PHP Test POST-->
+     <form action="/cgi-bin/test.php" method="POST">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name">
+        <button type="submit">Send</button>
+    </form>
+
+    <!-- Python Test -->
+    <form action="/cgi-bin/test.py" method="GET">
+        <button type="submit">Run Python Script</button>
+    </form>
+
+    <!-- Shell Script Test -->
+    <form action="/cgi-bin/test.sh" method="GET">
+        <button type="submit">Run Shell Script</button>
+    </form>
+
+    <!-- Perl Test -->
+    <form action="/cgi-bin/test.pl" method="GET">
+        <button type="submit">Run Perl Script</button>
+    </form>
+
+    <!-- Ruby Test -->
+    <form action="/cgi-bin/test.rb" method="GET">
+        <button type="submit">Run Ruby Script</button>
+    </form>
+
+    <!-- C Test  -->
+    <form action="/cgi-bin/test.c" method="GET">
+        <button type="submit">Run C Script</button>
+    </form>
+
+
+    <!-- Java Test -->
+    <form action="/cgi-bin/test.java" method="GET">
+        <button type="submit">Run Java Script</button>
+    </form>
+</body>
+</html>
