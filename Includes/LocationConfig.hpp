@@ -10,6 +10,7 @@ class LocationConfig : public Config
     private:
         std::string _path;
         std::string _root;
+        std::string _alias;
         std::string _index;
         bool _autoindex;
         std::vector<std::string> _cgiPath;
@@ -31,6 +32,9 @@ class LocationConfig : public Config
 
         void setRoot(const std::string& root);
         const std::string& getRoot() const;
+
+        void setAlias(const std::string& alias);
+        const std::string& getAlias() const;
 
         void setIndex(const std::string& index);
         const std::string& getIndex() const;

@@ -3,9 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <title>404 Not Found</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #f1f1f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #ff4d4d, 0 0 40px #ff4d4d;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-bottom: 25px;
+            color: #d0d0d0;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            background: #00d4ff;
+            color: #0d0d0d;
+            font-weight: bold;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #00a3cc;
+            transform: scale(1.05);
+        }
+
+        .svg-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
 </head>
 <body>
     <h1>404 - Page Not Found</h1>
-    <p>The page you are looking for does not exist.</p>
+    <p>The page you are looking for does not exist or has been moved.</p>
+    <a href="/welcome.html" class="btn">Return to Home</a>
+
+    <!-- SVG décoratif avec un style futuriste -->
+    <div class="svg-background">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="grad" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#ff4d4d" stop-opacity="0.7" />
+                    <stop offset="100%" stop-color="transparent" />
+                </radialGradient>
+
+                <linearGradient id="lineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#ff6f61" />
+                    <stop offset="50%" stop-color="#00d4ff" />
+                    <stop offset="100%" stop-color="#ff6f61" />
+                </linearGradient>
+            </defs>
+
+            <!-- Cercles pulsants -->
+            <circle cx="50%" cy="30%" r="80" fill="url(#grad)">
+                <animate attributeName="r" values="70;90;70" dur="6s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="20%" cy="70%" r="60" fill="url(#grad)">
+                <animate attributeName="r" values="50;70;50" dur="5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="80%" cy="75%" r="50" fill="url(#grad)">
+                <animate attributeName="r" values="45;65;45" dur="7s" repeatCount="indefinite" />
+            </circle>
+
+            <!-- Lignes dynamiques traversantes -->
+            <line x1="-10%" y1="40%" x2="110%" y2="40%" stroke="url(#lineGradient)" stroke-width="2" stroke-linecap="round">
+                <animate attributeName="y1" values="40%;60%;40%" dur="10s" repeatCount="indefinite" />
+                <animate attributeName="y2" values="40%;60%;40%" dur="10s" repeatCount="indefinite" />
+            </line>
+            <line x1="-10%" y1="60%" x2="110%" y2="60%" stroke="url(#lineGradient)" stroke-width="2" stroke-linecap="round">
+                <animate attributeName="y1" values="60%;30%;60%" dur="8s" repeatCount="indefinite" />
+                <animate attributeName="y2" values="60%;30%;60%" dur="8s" repeatCount="indefinite" />
+            </line>
+        </svg>
+    </div>
 </body>
 </html>
+

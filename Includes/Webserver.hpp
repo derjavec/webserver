@@ -1,6 +1,7 @@
 #ifndef WEBSERVER_HPP
 # define WEBSERVER_HPP
 
+#define MAX_URI_LENGTH  8192
 
 //basics
 # include <cstring>
@@ -14,6 +15,9 @@
 # include <map>
 # include <vector>
 # include <dirent.h>
+# include <algorithm>
+# include <ctime>
+
 
 
 //cgi

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feedback Form</title>
+    <link rel="stylesheet" href="../assets/style.css">
+    <style>
+        body {
+            background-color: #0d0d0d;
+            color: #f1f1f1;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            padding: 30px;
+        }
+
+        h1 {
+            font-size: 2.4rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px #00d4ff;
+        }
+
+        .form-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            font-weight: bold;
+            margin-top: 15px;
+            color: #d0d0d0;
+        }
+
+        input[type="text"], input[type="email"], textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: #f1f1f1;
+            font-size: 1rem;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 10px;
+            background: #00d4ff;
+            color: #0d0d0d;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        button:hover {
+            background: #00a3cc;
+            transform: scale(1.05);
+        }
+
+        .svg-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+    </style>
+</head>
+<body>
+    <h1>Submit Your Feedback</h1>
+    <div class="form-container">
+        <form action="/submit-form" method="POST">
+            <input type="hidden" name="form_file" value="form/feedback.csv"> 
+
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="comment">Comment:</label>
+            <textarea id="comment" name="comment" rows="4" required></textarea>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+
+    <!-- SVG décoratif futuriste -->
+    <div class="svg-background">
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="backgroundGradient" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#00d4ff" stop-opacity="0.3" />
+                    <stop offset="100%" stop-color="transparent" />
+                </radialGradient>
+            </defs>
+
+            <!-- Cercles décoratifs -->
+            <circle cx="25%" cy="80%" r="60" fill="url(#backgroundGradient)">
+                <animate attributeName="r" values="50;70;50" dur="5s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="80%" cy="20%" r="80" fill="url(#backgroundGradient)">
+                <animate attributeName="r" values="70;90;70" dur="6s" repeatCount="indefinite" />
+            </circle>
+        </svg>
+    </div>
+</body>
+</html>
+

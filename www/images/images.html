@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Gallery</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        .gallery { display: flex; flex-wrap: wrap; justify-content: center; }
+        .gallery img { max-width: 150px; margin: 10px; cursor: pointer; border-radius: 8px; }
+        .delete-btn { display: block; margin: 5px auto; padding: 5px 10px; background: red; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <h1>Image Gallery</h1>
+
+    <!-- Image Upload Form -->
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file" accept="image/*">
+        <button type="button" onclick="uploadImage()">Upload Image</button>
+    </form>
+
+    <hr>
+
+    <!-- Image Display -->
+    <div class="gallery" id="gallery"></div>
+
+    <script>
+        // Load images dynamically from the server
+        function loadImages() {
+            fetch('/images/')
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const links = doc.querySelectorAll('a');
+                const gallery = document.getElementById('gallery');
+                gallery.innerHTML = '';
+
+                links.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i)) {
+                        const div = document.createElement('div');
+                        const img = document.createElement('img');
+                        img.src = '/images/' + href;
+                        img.alt = href;
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.innerText = "Delete";
+                        deleteBtn.className = "delete-btn";
+                        deleteBtn.onclick = () => deleteImage(href);
+
+                        div.appendChild(img);
+                        div.appendChild(deleteBtn);
+                        gallery.appendChild(div);
+                    }
+                });
+            });
+        }
+
+        // Upload an image
+        function uploadImage() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files.length) {
+                alert("Please select an image to upload.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+
+            fetch('/images', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert("Image uploaded successfully!");
+                    loadImages();
+                } else {
+                    alert("Upload failed.");
+                }
+            })
+            .catch(() => alert("Network error."));
+        }
+
+        // Delete an image
+        function deleteImage(filename) {
+            fetch('/images/' + filename, { method: 'DELETE' })
+            .then(response => {
+                if (response.ok) {
+                    alert("Image deleted successfully!");
+                    loadImages();
+                } else {
+                    alert("Deletion failed.");
+                }
+            })
+            .catch(() => alert("Network error."));
+        }
+
+        // Load images when the page loads
+        window.onload = loadImages;
+    </script>
+
+</body>
+</html>

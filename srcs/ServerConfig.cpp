@@ -1,6 +1,6 @@
 #include "ServerConfig.hpp"
 
-ServerConfig::ServerConfig(): _port(8080), _serverName("localhost"), _root("./"), _clientMaxBodySize(1048576), _index("index.html"), _autoindex(false) {}
+ServerConfig::ServerConfig(): _port(8080), _serverName("localhost"), _root("./"), _clientMaxBodySize(1048576), _index("index.html"), _autoindex(false) , _upload("www/upload") {}
 ServerConfig::~ServerConfig(){}
 ServerConfig::ServerConfig(const ServerConfig& obj): Config(obj)
 {
@@ -13,6 +13,7 @@ ServerConfig& ServerConfig::operator=(const ServerConfig& obj)
         _port = obj._port;
         _serverName = obj._serverName;
         _root = obj._root;
+        _upload = obj._upload;
         _clientMaxBodySize = obj._clientMaxBodySize;
         _index = obj._index;
         _autoindex = obj._autoindex;
@@ -25,6 +26,7 @@ ServerConfig& ServerConfig::operator=(const ServerConfig& obj)
 uint16_t ServerConfig::getPort() const { return _port; }
 const std::string& ServerConfig::getServerName() const { return _serverName; }
 const std::string& ServerConfig::getRoot() const { return _root; }
+const std::string& ServerConfig::getUpload() const { return _upload; }
 unsigned long ServerConfig::getClientMaxBodySize() const { return _clientMaxBodySize; }
 const std::string& ServerConfig::getIndex() const { return _index; }
 bool ServerConfig::isAutoindexEnabled() const { return _autoindex; }
@@ -34,17 +36,20 @@ const std::vector<LocationConfig>& ServerConfig::getLocations() const { return _
 void ServerConfig::setPort(uint16_t port) { _port = port; }
 void ServerConfig::setServerName(const std::string& name) { _serverName = name; }
 void ServerConfig::setRoot(const std::string& root) { _root = root; }
+void ServerConfig::setUpload(const std::string& upload) { _upload = upload; }
 void ServerConfig::setClientMaxBodySize(unsigned long size) { _clientMaxBodySize = size; }
 void ServerConfig::setIndex(const std::string& index) { _index = index; }
 void ServerConfig::setAutoindex(bool autoindex) { _autoindex = autoindex; }
 void ServerConfig::addErrorPage(int code, const std::string& path) { _errorPages[code] = path; }
 void ServerConfig::addLocation(const LocationConfig& location) {_locations.push_back(location);}
 
-void ServerConfig::validateSingleValue(const std::string& key, const std::string& value) {
+void ServerConfig::validateSingleValue(const std::string& key, const std::string& value)
+{
     if (key == "error_page")
         return;
     
-    if (key != "listen") {
+    if (key != "listen") 
+    {
         size_t spacePos = value.find(" ");
         if (spacePos != std::string::npos)
         {
@@ -56,25 +61,31 @@ void ServerConfig::validateSingleValue(const std::string& key, const std::string
         }
     }
 }
-const std::vector<uint16_t>& ServerConfig::getPorts(void) const {
+
+const std::vector<uint16_t>& ServerConfig::getPorts(void) const
+{
 	return (this->_ports);
 }
 
 void ServerConfig::parseServerKeyValue(const std::string& key, const std::string& value)
 {
     validateSingleValue(key, value);
-    if (key == "listen"){
+    if (key == "listen")
+    {
     	std::istringstream iss(value);
-	std::string token;
-	while (iss >> token){
-		int port = stringToInt(token);
-		if (port < 0 || port > 65635)
-			throw std::runtime_error("ServerConfig: Invalid port number:" + token);
-		_ports.push_back(static_cast<uint16_t>(port));
-	}
+        std::string token;
+        while (iss >> token)
+        {
+            int port = stringToInt(token);
+            if (port < 0 || port > 65635)
+                throw std::runtime_error("ServerConfig: Invalid port number:" + token);
+            _ports.push_back(static_cast<uint16_t>(port));
+        }
     }
     else if (key == "server_name")
         _serverName = value;
+    else if (key == "upload_store")
+    _upload = value;
     else if (key == "root")
         _root = value;
     else if (key == "client_max_body_size")
@@ -123,7 +134,8 @@ void ServerConfig::parse(std::ifstream& configFile)
         line.erase(line.find_last_not_of(" \t") + 1);
         if (line.empty())
             continue;
-        if (line == "server {" || line == "server{")
+        if ((line.find("server") != std::string::npos && line.find("{") != std::string::npos) 
+        || (line.find("server{") != std::string::npos))
         {
             braceDepth++;
             continue;
@@ -152,7 +164,7 @@ void ServerConfig::parse(std::ifstream& configFile)
                 currentLocation.validate();
                 _locations.push_back(currentLocation);
                 inLocationBlock = false;
-               // currentLocation.print();
+                //currentLocation.print();
             }
             else if (braceDepth != 0)
                 throw std::runtime_error("ServerConfig: Unmatched closing brace '}' in configuration.");
@@ -173,10 +185,10 @@ void ServerConfig::parse(std::ifstream& configFile)
         {
             currentLocation.setParameter(key, value);
             if (key == "root") currentLocation.setRoot(value);
+            else if (key == "alias") currentLocation.setAlias(value);
             else if (key == "index") currentLocation.setIndex(value);
             else if (key == "autoindex")
             {
-                std::cout << currentLocation.getPath() << " " << value << std::endl;
                 if (value == "on")
                     currentLocation.setAutoindex(true);
                 else if (value == "off")
@@ -189,18 +201,19 @@ void ServerConfig::parse(std::ifstream& configFile)
             else if (key == "cgi_ext") currentLocation.addCgiExtension(value);
             else if (key == "client_max_body_size") currentLocation.setClientMaxBodySize(stringToULong(value));
             else if (key == "allow_methods")
-            {
-                std::istringstream methodStream(value);
-                std::string method;
-                while (methodStream >> method)
-                {
-                    currentLocation.addMethod(method);
-                }
-            }
-            else if (key == "method")
-                throw std::runtime_error("Invalid key 'method'. Did you mean 'allow_methods'?");
-        }
-           
+	    {
+		    std::istringstream methodStream(value);
+		    std::string method;
+		    while (methodStream >> method)
+		    {
+			    if (!method.empty() && method[method.length() - 1] == ';')
+				    method = method.substr(0, method.length() - 1);
+			    currentLocation.addMethod(method);
+		    }
+	    } 
+	    else if (key == "method")
+		    throw std::runtime_error("Invalid key 'method'. Did you mean 'allow_methods'?");
+	} 
         else
         {
             setParameter("server_" + key, value);
@@ -218,6 +231,8 @@ void ServerConfig::validate() const
         throw std::runtime_error("ServerConfig: Missing 'root' parameter.");
     if (parameters.find("server_index") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'index' parameter.");
+    if (!directoryExists(_upload))
+        throw std::runtime_error("ServerConfig: Upload directory does not exist: " + _upload);
     if (!directoryExists(_root))
         throw std::runtime_error("ServerConfig: Root directory does not exist: " + _root);
 }
@@ -233,18 +248,21 @@ void ServerConfig::print() const
     std::cout << "Autoindex: " << (_autoindex ? "on" : "off") << std::endl;
 
     std::cout << "Error Pages: " << std::endl;
-    for (std::map<int, std::string>::const_iterator it = _errorPages.begin(); it != _errorPages.end(); ++it) {
+    for (std::map<int, std::string>::const_iterator it = _errorPages.begin(); it != _errorPages.end(); ++it)
+    {
         std::cout << "  " << it->first << ": " << it->second << std::endl;
     }
 
     std::cout << "Locations: " << std::endl;
-    for (size_t i = 0; i < _locations.size(); ++i) {
+    for (size_t i = 0; i < _locations.size(); ++i)
+    {
         std::cout << "  Location " << i + 1 << ":" << std::endl;
         _locations[i].print();
     }
 
     std::cout << "Parameters Map:" << std::endl;
-    for (std::map<std::string, std::string>::const_iterator it = parameters.begin(); it != parameters.end(); ++it) {
+    for (std::map<std::string, std::string>::const_iterator it = parameters.begin(); it != parameters.end(); ++it)
+    {
         std::cout << "  " << it->first << ": " << it->second << std::endl;
     }
     std::cout << "=========================" << std::endl;

@@ -11,14 +11,18 @@
 /* ************************************************************************** */
 
 #include "FDStreamBuf.hpp"
-FDStreamBuf::FDStreamBuf(int fd, std::size_t bufferSize) : _fd(fd), _bufferSize(bufferSize){
+
+FDStreamBuf::FDStreamBuf(int fd, std::size_t bufferSize) : _fd(fd), _bufferSize(bufferSize)
+{
 	_buffer = new char[_bufferSize];
 	setg(_buffer, _buffer, _buffer);
 }
-FDStreamBuf::~FDStreamBuf(void) {
+FDStreamBuf::~FDStreamBuf(void) 
+{
 	delete[] _buffer;
 }
-std::string FDStreamBuf::readAll(void){
+std::string FDStreamBuf::readAll(void)
+{
 	std::string result;
 	while (true){
 		int c = this->sgetc();
@@ -30,14 +34,13 @@ std::string FDStreamBuf::readAll(void){
 	return (result);
 }
 
-int FDStreamBuf::underflow() {
-    if (gptr() < egptr()) {
+int FDStreamBuf::underflow()
+{
+    if (gptr() < egptr())
         return traits_type::to_int_type(*gptr());
-    }
     ssize_t n = read(_fd, _buffer, _bufferSize);
-    if (n <= 0) {
+    if (n <= 0)
         return traits_type::eof();
-    }
     setg(_buffer, _buffer, _buffer + n);
     return traits_type::to_int_type(*gptr());
 }

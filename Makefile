@@ -17,6 +17,13 @@ OBJ_DIR = obj/
 SRC = $(SRC_DIR)/main.cpp \
 	  $(UTILS_DIR)/Server.cpp \
 	  $(UTILS_DIR)/ServerUtils.cpp \
+	  $(UTILS_DIR)/ServerInit.cpp \
+	  $(UTILS_DIR)/ServerPost.cpp \
+	  $(UTILS_DIR)/ServerCGI.cpp \
+	  $(UTILS_DIR)/ServerGet.cpp \
+	  $(UTILS_DIR)/ServerFolders.cpp \
+	  $(UTILS_DIR)/ServerDelete.cpp \
+	  $(UTILS_DIR)/ServerErrors.cpp \
 	  $(UTILS_DIR)/Config.cpp \
 	  $(UTILS_DIR)/ServerConfig.cpp \
 	  $(UTILS_DIR)/LocationConfig.cpp \

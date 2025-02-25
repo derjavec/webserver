@@ -16,6 +16,7 @@ class ServerConfig : public Config
         size_t _clientMaxBodySize;
         std::string _index;
         bool _autoindex;
+        std::string _upload;
         std::map<int, std::string> _errorPages;
         std::vector<LocationConfig> _locations;
 
@@ -43,6 +44,9 @@ class ServerConfig : public Config
 
         void setRoot(const std::string& root);
         const std::string& getRoot() const;
+
+        void setUpload(const std::string& upload);
+        const std::string& getUpload() const;
 
         void setClientMaxBodySize(unsigned long size);
         unsigned long getClientMaxBodySize() const;

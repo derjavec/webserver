@@ -12,7 +12,8 @@
 
 #include "Webserver.hpp"
 
-class FDStreamBuf : public std::streambuf {
+class FDStreamBuf : public std::streambuf
+{
 	private:
 		int	_fd;
 		char *_buffer;

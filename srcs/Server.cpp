@@ -1,15 +1,9 @@
 #include "Server.hpp"
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstring>
-#include <iostream>
-#include <algorithm>
-#include <sys/epoll.h>
-#include <errno.h>
-#include <sstream>
+#include "Webserver.hpp"
 
 Server::Server(const ServerConfig& config): _serverFd(-1), _running(false), _root(config.getRoot())
 {
+    _upload            = config.getUpload();
     _serverName        = config.getServerName();
     _clientMaxBodySize = config.getClientMaxBodySize();
     _index             = config.getIndex();
@@ -20,7 +14,7 @@ Server::Server(const ServerConfig& config): _serverFd(-1), _running(false), _roo
     const std::vector<uint16_t>& ports = config.getPorts();
     if (ports.empty())
         throw ServerException("No ports specified in configuration.");
-    handleMultiPorts(ports);
+    ServerInit::handleMultiPorts(*this, ports);
     _serverFd = _listeningSockets[0];
     _port = ports[0];
     try
@@ -55,8 +49,10 @@ Server& Server::operator=(const Server& obj)
         _port = obj._port;
         _epollFd = obj._epollFd;
         _running = obj._running;
+        _requestStartTime = obj._requestStartTime;
         _serverName = obj._serverName;
         _root = obj._root;
+        _upload = obj._upload;
         _clientMaxBodySize = obj._clientMaxBodySize;
         _index = obj._index;
         _autoindex = obj._autoindex;
@@ -64,52 +60,10 @@ Server& Server::operator=(const Server& obj)
         _locations = obj._locations;
         _listeningSockets = obj._listeningSockets;
         _listeningAddresses = obj._listeningAddresses;
+        _clientSessions = obj._clientSessions;
     }
     return *this;
 }
-
-
-void Server ::handleMultiPorts(const std::vector<uint16_t>& ports)
-{
-    for (size_t i = 0; i < ports.size(); ++i)
-    {
-        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd == -1)
-            throw ServerException("Failed to create socket: " + std::string(strerror(errno)));
-        int flags = fcntl(sockfd, F_GETFL, 0);
-        if (flags == -1 || fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) == -1)
-        {
-            close(sockfd);
-            throw ServerException("Failed to set socket non-blocking: " + std::string(strerror(errno)));
-        }
-        sockaddr_in addr;
-        memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(ports[i]);
-        addr.sin_addr.s_addr = INADDR_ANY;
-        if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-        {
-            close(sockfd);
-        	std::stringstream ss;
-            ss << ports[i];
-            throw ServerException("Failed to bind socket on port " + ss.str() + ": " + std::string(strerror(errno)));
-        }
-        if (listen(sockfd, SOMAXCONN) < 0)
-        {
-            close(sockfd);
-        	std::stringstream ss;
-            ss << ports[i];
-            throw ServerException("Failed to listen on port " + ss.str() + ": " + std::string(strerror(errno)));
-        }
-        _listeningSockets.push_back(sockfd);
-        _listeningAddresses.push_back(addr);
-        std::cout << "Server listening on port " << ports[i] << std::endl;
-    }
-}
-
-void Server::initSocket() {}
-void Server::bindSocket() {}
-void Server::startListening() {}
 
 void Server::initEpoll()
 {
@@ -125,7 +79,6 @@ void Server::initEpoll()
         if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, _listeningSockets[i], &ev) == -1)
             throw ServerException("Failed to add listening socket to epoll: " + std::string(strerror(errno)));
     }
-    std::cout << "Epoll instance created and all listening sockets registered." << std::endl;
 }
 
 int Server::acceptClient(sockaddr_in &clientAddress, int listeningFd)
@@ -148,7 +101,7 @@ int Server::acceptClient(sockaddr_in &clientAddress, int listeningFd)
             throw ServerException("Failed to set client socket non-blocking: " + std::string(strerror(errno)));
         }
         struct epoll_event ev;
-        ev.events = EPOLLIN | EPOLLET;
+        ev.events = EPOLLIN;
         ev.data.fd = clientFd;
         if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, clientFd, &ev) == -1)
         {
@@ -160,112 +113,172 @@ int Server::acceptClient(sockaddr_in &clientAddress, int listeningFd)
     return clientFd;
 }
 
-
-void Server::answerClientEvent(int clientFd, ssize_t bytesReceived, char *buffer)
+void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
 {
-    std::string rawRequest(buffer, bytesReceived);
     HttpRequestParser parser;
     try
     {
-        parser.parseRequest(rawRequest);
-        std::cout << "Request parsed successfully!" << std::endl;
-        std::cout << "Method: " << parser.getMethod() << std::endl;
-        std::string externalRedirect;
-        ServerUtils::handleRedirections(*this, parser, externalRedirect);
+        std::cout << "Contenido de clientBuffer:" << std::endl;
+        std::cout << std::string(clientBuffer.begin(), clientBuffer.end()) << std::endl;    
+        int res = parser.parseRequest(clientBuffer);
+        if (res !=0)
+        {
+            ServerErrors::handleErrors(*this, clientFd, res);
+            return;
+        }
+        std::string filePath = parser.getPath();
+        if (!ServerUtils::isValidURL(filePath))
+        {
+            std::cerr << "❌ Error: Invalid characters in request path: " << filePath << std::endl;
+            ServerErrors::handleErrors(*this, clientFd, 400);
+            return;
+        }
+        // if (parser.getMethod() != POST && ServerInit::handleImplicitRedirections(*this, clientFd, filePath))
+        //     return ;
+        parser.setPath(filePath);
+        std::string setCookieHeader = ServerInit::handleCookies(*this, parser, clientFd);
+        std::string externalRedirect = ServerInit::handleRedirections(*this, parser);
         if (!externalRedirect.empty())
         {
-            std::string response = "HTTP/1.1 301 Moved Permanently\r\n"
-                                   "Location: " + externalRedirect + "\r\n"
-                                   "Content-Length: 0\r\n\r\n";
+            std::string response = "HTTP/1.1 301 Moved Permanently\r\n";
+            response += setCookieHeader;
+            response += "Location: " + externalRedirect + "\r\n";
+            response += "Content-Length: 0\r\n\r\n";
             send(clientFd, response.c_str(), response.size(), 0);
             shutdown(clientFd, SHUT_WR);
             close(clientFd);
             return;
         }
-        if (parser.getMethod() == DELETE)
-        {
-            ServerUtils::handleDeleteRequest(*this, clientFd, parser);
-            return;
-        }
-        if (parser.ToString(parser.getMethod()) == "POST" &&
-            parser.getPath().find("/upload") == 0)
-        {
-            ServerUtils::handleFileUpload(*this, clientFd, rawRequest);
-            return;
-        }
-        std::string filePath = ServerUtils::resolveFilePath(*this, parser);
-        std::cout << "Path: " << filePath << std::endl;
-        size_t fileSize = ServerUtils::getFileSize(filePath);
-        std::pair<std::string, std::string> fileInfo = parser.getType();
-        std::cout << "fileinfo: " << fileInfo.first << " " << fileInfo.second << std::endl;
+        std::pair<std::string, std::string> fileInfo = parser.getContentType(filePath);
         std::string contentType = fileInfo.first;
         std::string fileCategory = fileInfo.second;
+        
+        if (parser.getMethod() == DELETE)
+        {
+            ServerDelete::handleDeleteRequest(*this, clientFd, parser);
+            return;
+        }
+        filePath = ServerUtils::resolveFilePath(*this, parser);
         size_t dotPos = filePath.find_last_of(".");
         std::string fileExtension = (dotPos != std::string::npos) ? filePath.substr(dotPos + 1) : "";
-        std::string scriptExecutor = ServerUtils::getScriptExecutor(fileExtension);
-        //std::cout << "Script Executor: " << scriptExecutor << std::endl;
+        std::string scriptExecutor = ServerCGI::getScriptExecutor(fileExtension);
         if (fileCategory == "script")
         {
-            ServerUtils::executeCGI(clientFd, filePath, parser.ToString(parser.getMethod()),
-                                    parser.getBody(), scriptExecutor);
+            ServerCGI::executeCGI(clientFd, filePath, parser.ToString(parser.getMethod()), parser.getBody(), scriptExecutor);
             return;
         }
-        if (parser.getPath() == "/")
-            filePath = _root + "/" + _index;
-        else if (!filePath.empty() && filePath[filePath.size() - 1] == '/')
+        if (parser.getMethod() == POST)
         {
-            ServerUtils::handleFoldersRequests(*this, clientFd, parser.getPath(), contentType);
+            ServerPost::handlePostRequest(*this, clientFd, parser, clientBuffer);
             return;
         }
-        else if (fileSize > LARGE_FILE_THRESHOLD)
-        {
-            std::cout << "Serving large file: " << fileSize << " bytes (Non-blocking)" << std::endl;
-            ServerUtils::serveLargeFileAsync(*this, clientFd, filePath, contentType);
-            return ;
-        }
-        ServerUtils::serveStaticFile(*this, clientFd, filePath, contentType);
+        ServerGet::handleGetRequest(*this, clientFd, parser, contentType);
     }
     catch (const std::exception& e)
     {
         std::cerr << "Error parsing request: " << e.what() << std::endl;
-        std::string response = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n";
+        std::string response = "HTTP/1.1 400 Bad Request\r\n";
+        response += "Set-Cookie: session_id=" + _clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
+        response += "Content-Length: 0\r\n\r\n";
         send(clientFd, response.c_str(), response.size(), 0);
         shutdown(clientFd, SHUT_WR);
         close(clientFd);
     }
 }
 
-void Server::handleClientEvent(int clientFd, uint32_t events)
-{
-    char buffer[4096] = {0};
-    ssize_t bytesReceived = recv(clientFd, buffer, sizeof(buffer), 0);
 
-    if (events & EPOLLIN)
-    {
-        if (bytesReceived <= 0)
-        {
-            if (bytesReceived == 0)
-                std::cout << "Client disconnected (fd: " << clientFd << ")" << std::endl;
-            else
-                std::cerr << "Error receiving message from client (fd: " << clientFd << "): " << strerror(errno) << std::endl;
-            close(clientFd);
-            epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientFd, NULL);
-        }
-        else
-            answerClientEvent(clientFd, bytesReceived, buffer);
-    }
-    if (events & EPOLLOUT)
-    {
-        std::cout << "🔹 EPOLLOUT triggered for client " << clientFd << std::endl;
-        ServerUtils::handleClientWrite(*this, clientFd);
-    }
+void Server::handleRequest(int clientFd, std::map<int, std::vector<char> >& clientBuffers, std::map<int, int>& expectedContentLength)
+{
+    answerClientEvent(clientFd, clientBuffers[clientFd]);
+    clientBuffers.erase(clientFd);
+    expectedContentLength.erase(clientFd);
 }
 
+void Server::handleRecvErrors(int clientFd, ssize_t bytesReceived, std::map<int, std::vector<char> >& clientBuffers, std::map<int, int>& expectedContentLength)
+{
+    if (bytesReceived == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) 
+    {
+        std::cout << "📢 No more data available for now, waiting for next event." << std::endl;
+        return;
+    }
+    else if (bytesReceived == 0) 
+        std::cout << "❌ Client disconnected (fd: " << clientFd << ")" << std::endl;
+    else 
+        std::cerr << "❌ Error receiving data from client (fd: " << clientFd << "): " << strerror(errno) << std::endl;
+    close(clientFd);
+    epoll_ctl(_epollFd, EPOLL_CTL_DEL, clientFd, NULL);
+    clientBuffers.erase(clientFd);
+    expectedContentLength.erase(clientFd);
+}
+
+void Server::handleClientEvent(int clientFd, uint32_t events)
+{
+    static std::map<int, std::vector<char> > clientBuffers;
+    static std::map<int, int> expectedContentLength;
+    
+    if (events & EPOLLIN)
+    {
+        char buffer[4096] = {0};      
+        ssize_t bytesReceived = recv(clientFd, buffer, sizeof(buffer), 0);
+        if (bytesReceived <= 0)
+        {
+            handleRecvErrors(clientFd, bytesReceived, clientBuffers, expectedContentLength);
+            return;
+        }
+        clientBuffers[clientFd].insert(clientBuffers[clientFd].end(), buffer, buffer + bytesReceived);
+        if (!ServerUtils::requestCompletelyRead(*this, clientFd, expectedContentLength, clientBuffers))
+            return;
+        handleRequest(clientFd, clientBuffers, expectedContentLength);
+    }
+    if (events & EPOLLOUT)
+        ServerGet::handleClientWrite(*this, clientFd);
+}
+
+bool Server::isMethodAllowed(const std::string &path, const std::string &method) const 
+{
+    std::string normalizedPath = ServerUtils::normalizePath(path);
+    const LocationConfig *bestMatch = NULL;
+    size_t bestMatchLength = 0;
+
+    for (size_t i = 0; i < _locations.size(); i++)
+    {
+        std::string locationPath = ServerUtils::normalizePath(_locations[i].getPath());
+        std::string fullLocationPath;
+
+        if (!_locations[i].getAlias().empty()) 
+            fullLocationPath = ServerUtils::normalizePath(_locations[i].getAlias());
+        else
+        {
+            std::string rootPath = ServerUtils::normalizePath(_locations[i].getRoot().empty() ? _root : _locations[i].getRoot());
+            fullLocationPath = rootPath;
+            if (!locationPath.empty() && locationPath != "/")
+                fullLocationPath +=  locationPath;
+        }
+        if (normalizedPath.compare(0, fullLocationPath.length(), fullLocationPath) == 0 &&
+            (normalizedPath.length() == fullLocationPath.length() || normalizedPath[fullLocationPath.length()] == '/'))
+        {
+            if (fullLocationPath.length() > bestMatchLength)
+            {
+                bestMatch = &_locations[i];
+                bestMatchLength = fullLocationPath.length();
+            }
+        }
+    }
+    if (bestMatch)
+    {
+        const std::vector<std::string> &methods = bestMatch->getMethods();
+        if (methods.empty()) 
+            return (method == "GET");
+        return std::find(methods.begin(), methods.end(), method) != methods.end();
+    }
+
+    return false; 
+}
 
 void Server::run()
 {
     std::cout << "Server is running..." << std::endl;
-    const int MAX_EVENTS = 10;
+    const int MAX_EVENTS = min(512, _clientMaxBodySize / 2 + 10);
     struct epoll_event events[MAX_EVENTS];
 
     while (_running)

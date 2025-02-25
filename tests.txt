@@ -1,0 +1,191 @@
+####################################
+# 🔹 SIMPLE TESTS (GET requests)
+####################################
+
+# ✅ Expected: 200 OK (should return index.html)
+curl -v http://localhost:8080/
+
+# ✅ Expected: 404 Not Found (page does not exist)
+curl -v http://localhost:8080/noexiste
+
+####################################
+# 🔹 HOST HEADER TESTS (telnet required)
+####################################
+
+# ✅ Expected: 400 Bad Request (duplicate Host headers)
+telnet localhost 8080
+GET / HTTP/1.1
+Host: localhost
+Host: otrohost
+
+# ✅ Expected: 400 Bad Request (empty Host header)
+telnet localhost 8080
+GET / HTTP/1.1
+Host:
+
+####################################
+# 🔹 INVALID HTTP METHODS
+####################################
+
+# ✅ Expected: 405 Method Not Allowed (PUT not supported)
+curl -v -X PUT http://localhost:8080/
+
+# ✅ Expected: 405 Method Not Allowed (PATCH not supported)
+curl -v -X PATCH http://localhost:8080/
+
+# ✅ Expected: 405 Method Not Allowed (OPTIONS not supported)
+curl -v -X OPTIONS http://localhost:8080/
+
+# ✅ Expected: 405 Method Not Allowed (TRACE not supported)
+curl -v -X TRACE http://localhost:8080/
+
+####################################
+# 🔹 GET WITH INVALID HEADERS
+####################################
+
+# ✅ Expected: 400 Bad Request (GET should not have Content-Length)
+curl -v -X GET -H "Content-Length: 10" http://localhost:8080/
+
+# ✅ Expected: 400 Bad Request (GET should not have Transfer-Encoding)
+curl -v -X GET -H "Transfer-Encoding: chunked" http://localhost:8080/
+
+# ✅ Expected: 417 Expectation Failed (GET should not have Expect: 100-continue)
+curl -v -X GET -H "Expect: 100-continue" http://localhost:8080/
+
+####################################
+# 🔹 DELETE WITH INVALID HEADERS
+####################################
+
+# ✅ Expected: 400 Bad Request (DELETE should not have Transfer-Encoding)
+curl -v -X DELETE -H "Transfer-Encoding: chunked" http://localhost:8080/resource
+
+# ✅ Expected: 417 Expectation Failed (DELETE should not have Expect: 100-continue)
+curl -v -X DELETE -H "Expect: 100-continue" http://localhost:8080/resource
+
+# ✅ Expected: 400 Bad Request (DELETE should not have a body)
+curl -v -X DELETE -H "Content-Length: 10" --data "testdata" http://localhost:8080/resource
+
+####################################
+# 🔹 CHUNKED TRANSFER ENCODING TESTS
+####################################
+
+# ✅ Expected: 200 OK (correctly processed chunked request)
+telnet localhost 8080
+POST / HTTP/1.1
+Host: localhost
+Transfer-Encoding: chunked
+
+4
+Wiki
+5
+pedia
+E
+ in 
+chunks.
+0
+
+# ✅ Expected: 400 Bad Request (chunked request missing final 0)
+telnet localhost 8080
+POST / HTTP/1.1
+Host: localhost
+Transfer-Encoding: chunked
+
+4
+Wiki
+5
+pedia
+E
+ in 
+chunks.
+
+####################################
+# 🔹 INVALID REQUEST-LINE TESTS
+####################################
+
+# ✅ Expected: 400 Bad Request (invalid request method)
+telnet localhost 8080
+FOOBAR / HTTP/1.1
+Host: localhost
+
+# ✅ Expected: 414 URI Too Long (over 8192 bytes in the URL)
+curl -v "http://localhost:8080/$(printf 'A%.0s' {1..9000})"
+
+####################################
+# 🔹 POST REQUESTS
+####################################
+
+# ✅ Expected: 204 No Content (empty POST body)
+curl -v -X POST -H "Content-Length: 0" http://localhost:8080/
+
+# ✅ Expected: 400 Bad Request (Content-Length: 0 but Content-Type is set)
+curl -v -X POST -H "Content-Length: 0" -H "Content-Type: application/json" http://localhost:8080/
+
+# ✅ Expected: 200 OK (valid form data)
+curl -v -X POST -H "Content-Type: application/x-www-form-urlencoded" --data "username=john&password=secret" http://localhost:8080/submit-form
+
+# ✅ Expected: 200 OK (valid JSON data)
+curl -v -X POST -H "Content-Type: application/json" --data '{"username": "john", "password": "secret"}' http://localhost:8080/api
+
+####################################
+# 🔹 ALLOWED OR NOT ALLOWED METHODS IN LOCATIONS (ANSWER DEPENDS ON CONFIG)
+####################################
+
+# ================================
+# 🔹 TESTING GET METHOD (SHOULD WORK IF ALLOWED)
+# ================================
+
+# 🔹 TEST GET IN "/"
+curl -X GET http://localhost:8080/ -v
+
+# 🔹 TEST GET IN "/images"
+curl -X GET http://localhost:8080/images/default.jpg -v
+
+# 🔹 TEST GET IN "/upload"
+curl -X GET http://localhost:8080/upload -v
+
+# 🔹 TEST GET IN "/files"
+curl -X GET http://localhost:8080/files -v
+
+# ================================
+# 🔹 TESTING POST METHOD (SHOULD WORK IF ALLOWED)
+# ================================
+
+# 🔹 TEST POST IN "/"
+curl -X POST http://localhost:8080/ -v
+
+# 🔹 TEST POST IN "/images"
+curl -X POST http://localhost:8080/images -v
+
+# 🔹 TEST POST IN "/upload"
+curl -X POST http://localhost:8080/upload -v
+
+# 🔹 TEST POST IN "/files"
+curl -X POST http://localhost:8080/files -v
+
+# ================================
+# 🔹 TESTING DELETE METHOD (SHOULD WORK IF ALLOWED)
+# ================================
+
+# 🔹 TEST DELETE IN "/"
+curl -X DELETE http://localhost:8080/ -v
+
+# 🔹 TEST DELETE IN "/images"
+curl -X DELETE http://localhost:8080/images/default.jpg -v
+
+# 🔹 TEST DELETE IN "/upload"
+curl -X DELETE http://localhost:8080/upload -v
+
+# 🔹 TEST DELETE IN "/files"
+curl -X DELETE http://localhost:8080/files -v
+
+
+
+####################################
+# 🔹 STRESS TESTS (CONCURRENT REQUESTS)
+####################################
+
+# ✅ Expected: Webserv should handle 1000 requests without crashing
+siege -c 50 -r 20 http://localhost:8080/
+
+# ✅ Expected: Webserv should handle a large payload correctly (or return 413 Payload Too Large)
+head -c 2000000 </dev/urandom | curl -v -X POST --data-binary @- http://localhost:8080/

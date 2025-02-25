@@ -4,7 +4,9 @@
 #include "Webserver.hpp"
 #include "Config.hpp"
 
-enum HttpMethod { GET, POST, DELETE, PUT, INVALID };
+enum HttpMethod { GET, POST, DELETE, PUT, HEAD, PATCH, OPTIONS, TRACE, CONNECT, INVALID};
+const std::string nonRepeatableHeaders[4] = {
+    "Content-Length", "Host", "Transfer-Encoding", "Content-Type"};
 
 class HttpRequestParser
 {
@@ -15,10 +17,13 @@ class HttpRequestParser
         std::map<std::string, std::string> _headers;
         std::string _body;
         std::pair<std::string, std::string> _fileType;
+        std::map<std::string, std::string> _cookies;
 
     public:
         HttpRequestParser();
-        void parseRequest(const std::string& rawRequest);
+        void parseCookies(const std::string &cookieHeader);
+        std::map<std::string, std::string> getCookies(void);
+        int parseRequest(const std::vector<char>& rawRequest);
 
         HttpMethod getMethod() const;
         void setPath(const std::string& path);
@@ -28,13 +33,13 @@ class HttpRequestParser
         std::string getBody() const;
         void setType(const std::string& path);
         std::pair<std::string, std::string> getType() const;
-
-    void parseRequestLine(const std::string& line);
-    void parseHeader(const std::string& line);
-    void validateRequest() const;
-    std::pair<std::string, std::string> getContentType(const std::string& filePath);
-    int stringToInt(const std::string& str);
-    std::string ToString(HttpMethod method);
+        bool hasExtraSpaces(const std::string& line);
+        int parseRequestLine(const std::string& line);
+        int parseHeader(const std::string& line);
+        int validateRequest() const;
+        std::pair<std::string, std::string> getContentType(const std::string& filePath);
+        bool stringToInt(const std::string& str, int &value);
+        std::string ToString(HttpMethod method);
 
     HttpMethod stringToMethod(const std::string& methodStr) const;
 };
