@@ -2,7 +2,7 @@
 
 void ServerDelete::handleDeleteRequest(Server &server, int clientFd, HttpRequestParser &parser)
 {
-    std::string filePath = ServerUtils::resolveFilePath(server, parser);
+    std::string filePath = ResolvePaths::resolveFilePath(server, parser);
     std::cout << "DELETE request for file: " << filePath << std::endl;
     std::map<std::string, std::string> headers = parser.getHeaders();
 
@@ -26,7 +26,7 @@ void ServerDelete::handleDeleteRequest(Server &server, int clientFd, HttpRequest
         ServerErrors::handleErrors(server, clientFd, 400);
         return;
     }
-    if (ServerUtils::findLocation(server, filePath) && !server.isMethodAllowed(filePath, "DELETE"))
+    if (ResolvePaths::findLocation(server, filePath) && !ResolvePaths::isMethodAllowed(server, filePath, "DELETE", parser.getPath()))
     {
         std::cerr << "❌ Error: DELETE not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);

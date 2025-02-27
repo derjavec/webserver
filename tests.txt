@@ -123,8 +123,6 @@ curl -v -X POST -H "Content-Length: 0" -H "Content-Type: application/json" http:
 # ✅ Expected: 200 OK (valid form data)
 curl -v -X POST -H "Content-Type: application/x-www-form-urlencoded" --data "username=john&password=secret" http://localhost:8080/submit-form
 
-# ✅ Expected: 200 OK (valid JSON data)
-curl -v -X POST -H "Content-Type: application/json" --data '{"username": "john", "password": "secret"}' http://localhost:8080/api
 
 ####################################
 # 🔹 ALLOWED OR NOT ALLOWED METHODS IN LOCATIONS (ANSWER DEPENDS ON CONFIG)

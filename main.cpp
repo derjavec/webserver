@@ -14,6 +14,16 @@ int main(int argc, char **argv)
     }
     else if (argc == 1)
     	argv[1] = (char*)"Config/default.conf";
+    struct sigaction sa;
+    std::memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = handleSignal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if (sigaction(SIGINT, &sa, NULL) == -1 || sigaction(SIGTERM, &sa, NULL) == -1)
+    {
+        perror("sigaction");
+        return EXIT_FAILURE;
+    }
     std::string configFilePath = argv[1];
     std::ifstream configFile(configFilePath.c_str());
     try

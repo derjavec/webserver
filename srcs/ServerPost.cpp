@@ -271,7 +271,7 @@ std::map<std::string, std::string> ServerPost::getFormFields(Server &server, int
         ServerErrors::handleErrors(server, clientFd, 400);
         return std::map<std::string, std::string>();
     }
-    std::map<std::string, std::string> formFields = ServerUtils::parseURLEncoded(formData); 
+    std::map<std::string, std::string> formFields = ResolvePaths::parseURLEncoded(formData); 
     if (formFields.count("form_file") > 0 && !getFormFilePath(server, formFields["form_file"], formFilePath))
     {
         ServerErrors::handleErrors(server, clientFd, 500);
@@ -425,7 +425,7 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
         ServerErrors::handleErrors(server, clientFd, 400);
         return false;
     }
-    std::map<std::string, std::string> formFields = ServerUtils::parseURLEncoded(formData);
+    std::map<std::string, std::string> formFields = ResolvePaths::parseURLEncoded(formData);
     std::string formFilePath;
     if (!getFormFilePath(server, formFields["form_file"], formFilePath))
     {
@@ -456,8 +456,8 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
 
 void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestParser& parser, std::vector<char>& clientBuffer)
 {
-    std::string filePath = ServerUtils::resolveFilePath(server, parser);
-    if (ServerUtils::findLocation(server, filePath) && !server.isMethodAllowed(filePath, "POST"))
+    std::string filePath = ResolvePaths::resolveFilePath(server, parser);
+    if (ResolvePaths::findLocation(server, filePath) && !ResolvePaths::isMethodAllowed(server, filePath, "POST", parser.getPath()))
     {
         std::cerr << "❌ Error: POST not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);

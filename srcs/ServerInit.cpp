@@ -53,72 +53,18 @@ void ServerInit::handleMultiPorts(Server&server, const std::vector<uint16_t>& po
     }
 }
 
-// bool ServerInit::handleImplicitRedirections(Server &server, int clientFd, const std::string &filePath)
-// {
-//     std::string cleanPath = filePath;
-//     while (cleanPath.size() > 1 && cleanPath[cleanPath.size()-1] == '/' && cleanPath[cleanPath.size()-2] == '/')
-//         cleanPath.erase(cleanPath.size()-1);
-//     if (cleanPath != filePath)
-//     {
-//         std::cout << "Redirecting to: " << cleanPath << std::endl;
-//         std::string response = "HTTP/1.1 301 Moved Permanently\r\n";
-//         response += "Location: " + cleanPath + "\r\n";
-//         response += "Content-Length: 0\r\n\r\n";
-//         send(clientFd, response.c_str(), response.size(), 0);
-//         shutdown(clientFd, SHUT_WR);
-//         close(clientFd);
-//         return true;
-//     }
-    
-    // if (filePath[filePath.size() - 1] != '/')
-    // {
-    //     std::string locIndex;
-    //     bool autoindex = false;
-    //     std::string dummy;
-    //     if (ServerUtils::findLocationConfig(server, filePath, locIndex, autoindex, dummy))
-    //     {
-    //         if (!locIndex.empty())
-    //             return false;
-    //         std::string redirectPath = filePath + "/";
-    //         std::cout << "Redirecting to: " << redirectPath << std::endl;
-    //         std::string response = "HTTP/1.1 301 Moved Permanently\r\n";
-    //         response += "Location: " + redirectPath + "\r\n";
-    //         response += "Content-Length: 0\r\n\r\n";
-    //         send(clientFd, response.c_str(), response.size(), 0);
-    //         shutdown(clientFd, SHUT_WR);
-    //         close(clientFd);
-    //         return true;
-    //     }
-    // }
-    
-    // if (filePath.find("welcome.html") != std::string::npos)
-    // {
-    //     std::string redirectPath = "login.html";
-    //     std::cout << "Redirecting to: " << redirectPath << std::endl;
-    //     std::string response = "HTTP/1.1 301 Moved Permanently\r\n";
-    //     response += "Location: " + redirectPath + "\r\n";
-    //     response += "Content-Length: 0\r\n\r\n";
-    //     send(clientFd, response.c_str(), response.size(), 0);
-    //     shutdown(clientFd, SHUT_WR);
-    //     close(clientFd);
-    //     return true;
-    // }
-    
-//     return false;
-// }
-
 std::string ServerInit::handleRedirections(Server &server, HttpRequestParser &parser)
 {
     std::string externalRedirect;
 
     for (std::vector<LocationConfig>::const_iterator it = server._locations.begin(); it != server._locations.end(); ++it)
     {
-        if (ServerUtils::normalizePath(parser.getPath()) == ServerUtils::normalizePath(it->getPath()) && !it->getRedirect().empty())
+        if (ResolvePaths::normalizePath(parser.getPath()) == ResolvePaths::normalizePath(it->getPath()) && !it->getRedirect().empty())
         {
-            const std::string &redirectTarget = ServerUtils::extractPathFromURL(it->getRedirect());
+            const std::string &redirectTarget = ResolvePaths::extractPathFromURL(it->getRedirect());
             for (std::vector<LocationConfig>::const_iterator locIt = server._locations.begin(); locIt != server._locations.end(); ++locIt)
             {
-                if (ServerUtils::normalizePath(redirectTarget) == ServerUtils::normalizePath(locIt->getPath()))
+                if (ResolvePaths::normalizePath(redirectTarget) == ResolvePaths::normalizePath(locIt->getPath()))
                 {
                     parser.setPath(redirectTarget);
                     parser.setType(redirectTarget);

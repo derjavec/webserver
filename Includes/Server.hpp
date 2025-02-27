@@ -14,6 +14,7 @@
 #include "ServerDelete.hpp"
 #include "ServerErrors.hpp"
 #include "SessionData.hpp"
+#include "ResolvePaths.hpp"
 #include <vector>
 #include <map>
 #include <netinet/in.h>
@@ -52,6 +53,7 @@ class Server
         friend class ServerGet;
         friend class ServerFolders;
         friend class ServerErrors;
+        friend class ResolvePaths;
 
     public:
         Server(const ServerConfig& config);
@@ -62,12 +64,11 @@ class Server
 
         void run();
         void stop();
-        int acceptClient(sockaddr_in &clientAddress, int listeningFd);
+        int  acceptClient(sockaddr_in &clientAddress, int listeningFd);
         void handleRequest(int clientFd, std::map<int, std::vector<char> >& clientBuffers, std::map<int, int>& expectedContentLength);
         void handleRecvErrors(int clientFd, ssize_t bytesReceived, std::map<int, std::vector<char> >& clientBuffers, std::map<int, int>& expectedContentLength);
         void handleClientEvent(int clientFd, uint32_t events);
         void answerClientEvent(int clientFd, std::vector<char>& clientBuffer);
-        bool isMethodAllowed(const std::string &path, const std::string &method) const;
         void print() const;
 };
 

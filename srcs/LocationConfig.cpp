@@ -87,7 +87,7 @@ void LocationConfig::validate() const
         std::string method;
         while (methodStream >> method)
         {
-            if (method != "GET" && method != "POST" && method != "PUT" && method != "DELETE" && method != "HEAD" && method != "OPTIONS")
+            if (method != "GET" && method != "POST" && method != "PUT" && method != "DELETE" && method != "HEAD" && method != "OPTIONS" && method != "PATCH" && method != "TRACE" && method != "CONNECT" )
                 throw std::runtime_error("LocationConfig: Invalid method '" + method + "' in 'methods'.");
         }
     }

@@ -79,6 +79,7 @@ void ServerGet::serveLargeFileAsync(Server &server, int clientFd, const std::str
 
 void ServerGet::serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &server, int clientFd, const std::string &filePath, const std::string &contentType)
 {
+    std::cout<<filePath<<std::endl;
     std::ifstream file(filePath.c_str(), std::ios::binary);
     if (!file.is_open())
     {
@@ -86,7 +87,11 @@ void ServerGet::serveStaticFile(const std::map<int, SessionData> &clientSessions
         ServerErrors::handleErrors(server, clientFd, 404);
         return;
     }
-
+    if (content.empty())
+    {
+        ServerErrors::handleErrors(server, clientFd, 204);
+        return ;
+    } 
     std::stringstream buffer;
     buffer << file.rdbuf();
     std::string content = buffer.str();
@@ -119,7 +124,7 @@ void ServerGet::handleRawPost(int clientFd)
 
 void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser &parser, const std::string &contentType)
 {
-    std::string filePath = ServerUtils::resolveFilePath(server, parser);
+    std::string filePath = ResolvePaths::resolveFilePath(server, parser);
     std::map<std::string, std::string> headers = parser.getHeaders();
     if (headers.find("Content-Length") != headers.end())
     {
@@ -133,23 +138,20 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
         ServerErrors::handleErrors(server, clientFd, 400);
         return;
     }
-
     if (headers.find("Expect") != headers.end() && headers["Expect"] == "100-continue")
     {
         std::cerr << "❌ 417 Expectation Failed: GET request should not use Expect: 100-continue." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 417);
         return;
     }
-    if (ServerUtils::findLocation(server, filePath) && !server.isMethodAllowed(filePath, "GET"))
+    if (ResolvePaths::findLocation(server, filePath) && !ResolvePaths::isMethodAllowed(server, filePath, "GET", parser.getPath()))
     {
         std::cerr << "❌ Error: GET not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);
         return;
     }
-    if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath))
+    if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath, ResolvePaths::doubleNormalizePath(parser.getPath())))
         return;
-    if (!filePath.empty() && filePath[filePath.size() - 1] == '/')
-        filePath.erase(filePath.size() - 1);
     size_t fileSize = ServerUtils::getFileSize(filePath);
     if (fileSize > server._clientMaxBodySize)
     {

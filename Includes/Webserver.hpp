@@ -31,7 +31,11 @@
 # include <sys/epoll.h>
 # include <fcntl.h>
 
+//signals
+#include <csignal>
+
 //owns
+#include "SignalHandler.hpp"
 //#include "Client.hpp"
 //#include "Server.hpp"
 

@@ -24,11 +24,13 @@ SRC = $(SRC_DIR)/main.cpp \
 	  $(UTILS_DIR)/ServerFolders.cpp \
 	  $(UTILS_DIR)/ServerDelete.cpp \
 	  $(UTILS_DIR)/ServerErrors.cpp \
+	  $(UTILS_DIR)/ResolvePaths.cpp \
 	  $(UTILS_DIR)/Config.cpp \
 	  $(UTILS_DIR)/ServerConfig.cpp \
 	  $(UTILS_DIR)/LocationConfig.cpp \
 	  $(UTILS_DIR)/HttpRequestParser.cpp \
 	  $(UTILS_DIR)/FDStreamBuf.cpp \
+	  $(UTILS_DIR)/SignalHandler.cpp \
 
 OBJ = $(SRC:$(UTILS_DIR)%.cpp=$(OBJ_DIR)%.o)
 

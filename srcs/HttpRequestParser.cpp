@@ -134,7 +134,7 @@ int HttpRequestParser::parseRequestLine(const std::string& line)
     _method = stringToMethod(methodStr);
     if (path.empty() || path[0] != '/')
     {
-        std::cerr << "Error: 405 Method Not Allowed: Unsupported HTTP method." << std::endl;
+        std::cerr << "Error: 400 Bad Request: Invalid request path." << std::endl;
         return 400;
     }
     _path = path;
@@ -195,6 +195,11 @@ int HttpRequestParser::validateRequest() const
     {
         std::cerr << "❌ Invalid request: Unsupported HTTP method." << std::endl;
         return 501;
+    }
+    if (_method == PUT || _method == HEAD || _method == OPTIONS || _method == PATCH || _method == TRACE || _method == CONNECT)
+    {
+        std::cerr << "❌ Invalid request: Not implemented HTTP method." << std::endl;
+        return 405;
     }
     if (_version != "HTTP/1.1")
     {

@@ -118,8 +118,6 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
     HttpRequestParser parser;
     try
     {
-        // std::cout << "Contenido de clientBuffer:" << std::endl;
-        // std::cout << std::string(clientBuffer.begin(), clientBuffer.end()) << std::endl;    
         int res = parser.parseRequest(clientBuffer);
         if (res !=0)
         {
@@ -156,8 +154,8 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             ServerDelete::handleDeleteRequest(*this, clientFd, parser);
             return;
         }
-        filePath = ServerUtils::resolveFilePath(*this, parser);
-        std::cout<<"filePath "<<filePath<<std::endl;
+        filePath = ResolvePaths::resolveFilePath(*this, parser);
+        std::cout << "filePath :" << filePath << std::endl;
         size_t dotPos = filePath.find_last_of(".");
         std::string fileExtension = (dotPos != std::string::npos) ? filePath.substr(dotPos + 1) : "";
         std::string scriptExecutor = ServerCGI::getScriptExecutor(fileExtension);
@@ -214,7 +212,6 @@ void Server::handleClientEvent(int clientFd, uint32_t events)
 {
     static std::map<int, std::vector<char> > clientBuffers;
     static std::map<int, int> expectedContentLength;
-    
     if (events & EPOLLIN)
     {
         char buffer[4096] = {0};      
@@ -233,74 +230,17 @@ void Server::handleClientEvent(int clientFd, uint32_t events)
         ServerGet::handleClientWrite(*this, clientFd);
 }
 
-bool Server::isMethodAllowed(const std::string &path, const std::string &method) const 
-{
-    std::string normalizedPath = ServerUtils::normalizePath(path);
-    std::cout<< "path en IMA " << normalizedPath<<std::endl;
-    const LocationConfig *bestMatch = NULL;
-    size_t bestMatchLength = 0;
-
-    for (size_t i = 0; i < _locations.size(); i++)
-    {
-        std::string locationPath = ServerUtils::normalizePath(_locations[i].getPath());
-        std::string fullLocationPath;
-        if (_locations[i].getAlias().empty() && _locations[i].getRoot().empty())
-            fullLocationPath = ServerUtils::normalizePath(_root + locationPath);
-        else if (!_locations[i].getAlias().empty()) 
-            fullLocationPath = ServerUtils::normalizePath(_locations[i].getAlias());
-        else
-        {
-            std::string root = ServerUtils::normalizePath(_locations[i].getRoot());
-            std::string fileName;
-            size_t lastSlash = normalizedPath.find_last_of("/");
-            if (lastSlash != std::string::npos)
-                fileName = normalizedPath.substr(lastSlash + 1);
-            else 
-                fileName = normalizedPath;
-            if (fileName.find(".") == std::string::npos)
-                fileName = "";
-            std::string testPath = root + "/" + fileName;
-            bool isDir = ServerUtils::isDirectory(testPath);
-            std::cout << "tesst path "<< testPath<<std::endl;
-            if (!isDir && !std::ifstream(testPath.c_str()).good())
-                fullLocationPath = root + locationPath;
-            else if (isDir && ServerUtils::isDirectory(root + locationPath))
-                fullLocationPath = root + locationPath;
-            else
-                fullLocationPath = root;
-        }
-        std::cout<< "path en ISA " << fullLocationPath<<std::endl;
-        // if (normalizedPath.compare(0, fullLocationPath.length(), fullLocationPath) == 0 &&
-        //     (normalizedPath.length() == fullLocationPath.length() || normalizedPath[fullLocationPath.length()] == '/'))
-        if (normalizedPath.find(fullLocationPath) == 0)
-        {
-            if (fullLocationPath.length() > bestMatchLength)
-            {
-                bestMatch = &_locations[i];
-                bestMatchLength = fullLocationPath.length();
-            }
-        }
-    }
-    if (bestMatch)
-    {
-        std::cout << "encuentra : "<<bestMatch->getPath()<<std::endl;
-        const std::vector<std::string> &methods = bestMatch->getMethods();
-        if (methods.empty()) 
-            return (method == "GET");
-        return std::find(methods.begin(), methods.end(), method) != methods.end();
-    }
-
-    return false; 
-}
-
 void Server::run()
 {
     std::cout << "Server is running..." << std::endl;
+    std::vector<int> fdsClients;
     const int MAX_EVENTS = min(512, _clientMaxBodySize / 2 + 10);
     struct epoll_event events[MAX_EVENTS];
 
     while (_running)
     {
+        if (stopRequested == 1)
+            break;
         int nfds = epoll_wait(_epollFd, events, MAX_EVENTS, 0);
         if (nfds == -1)
         {
@@ -325,7 +265,8 @@ void Server::run()
                 sockaddr_in clientAddress;
                 try
                 {
-                    acceptClient(clientAddress, eventFd);
+                    int clientFd = acceptClient(clientAddress, eventFd);
+                    fdsClients.push_back(clientFd);
                 }
                 catch (const ServerException &e)
                 {
@@ -337,6 +278,14 @@ void Server::run()
                 handleClientEvent(eventFd, eventType);
         }
     }
+    for (size_t j = 0; j < _listeningSockets.size(); ++j)
+    {
+        if (_listeningSockets[j] != -1)
+            close(_listeningSockets[j]);
+    }
+    for (std::vector<int>::const_iterator it = fdsClients.begin(); it != fdsClients.end(); ++it)
+        close(*it);
+    close(_epollFd);
 }
 
 

@@ -1,18 +1,14 @@
 #include "ServerFolders.hpp"
 
-bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, const std::string &path)
+bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, const std::string &path, const std::string &url)
 {
     std::string locationIndex;
     bool autoindexEnabled = false;
     std::string filePath;
-    if (!ServerUtils::findLocationConfig(server, path, locationIndex, autoindexEnabled, filePath))
+    if (!ResolvePaths::findLocationConfig(server, path, locationIndex, autoindexEnabled, filePath, url))
         return false;
-    std::cout << "location index "<< locationIndex << std::endl;
     if (!locationIndex.empty())
     {
-        // std::string testPath = filePath + "/" +locationIndex;
-        // std::cout << testPath << std::endl;
-        // if (!std::ifstream(testPath.c_str()).good())
         filePath = filePath + "/"+ locationIndex;
         std::cout << filePath << std::endl;
         std::ifstream file(filePath.c_str());
@@ -21,8 +17,12 @@ bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, const st
             std::stringstream buffer;
             buffer << file.rdbuf();
             std::string content = buffer.str();
-            //std::cout << "content "<< content<<std::endl;
             file.close();
+            if (content.empty())
+            {
+                ServerErrors::handleErrors(server, clientFd, 204);
+                return true;
+            }        
             std::string response = "HTTP/1.1 200 OK\r\n";
             response += "Content-Type: text/html\r\n";
             response += "Content-Length: " + ServerUtils::numberToString(content.size()) + "\r\n";
