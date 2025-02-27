@@ -146,7 +146,7 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
         ServerErrors::handleErrors(server, clientFd, 405);
         return;
     }
-    if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath, contentType))
+    if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath))
         return;
     if (!filePath.empty() && filePath[filePath.size() - 1] == '/')
         filePath.erase(filePath.size() - 1);

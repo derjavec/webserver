@@ -1,6 +1,6 @@
 #include "LocationConfig.hpp"
 
-LocationConfig::LocationConfig() :  _autoindex(false), _clientMaxBodySize(1048576){}
+LocationConfig::LocationConfig() :  _root(""), _alias(""), _autoindex(false), _clientMaxBodySize(1048576){}
 LocationConfig::~LocationConfig() {}
 LocationConfig::LocationConfig(const LocationConfig& obj) : Config(obj)
 {
@@ -60,8 +60,6 @@ void LocationConfig::validate() const
         bool has_alias = (parameters.find("alias") != parameters.end() && !parameters.at("alias").empty());
         if (has_root && has_alias)
             throw std::runtime_error("LocationConfig: 'root' and 'alias' cannot be used together.");
-        if (!has_root && !has_alias)
-            throw std::runtime_error("LocationConfig: Missing or empty 'root'/'alias' parameter.");
     }
     if (parameters.find("autoindex") != parameters.end())
     {

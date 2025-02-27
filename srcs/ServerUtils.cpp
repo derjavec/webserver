@@ -15,7 +15,7 @@ bool directoryExists(const std::string &path)
 std::string ServerUtils::resolveFilePath(Server &server, HttpRequestParser parser)
 {
     std::string reqPath = parser.getPath();
-
+    std::cout << "eq path "<< reqPath <<std::endl;
     size_t pos = reqPath.find('?');
     if (pos != std::string::npos)
         reqPath = reqPath.substr(0, pos);
@@ -44,9 +44,12 @@ std::string ServerUtils::resolveFilePath(Server &server, HttpRequestParser parse
     if (bestLocation)
     {
         std::string relativePath = reqPath.substr(bestMatchLength);
+        std::cout << "relative path "<< reqPath << " "<< relativePath<<std::endl;
         if (!relativePath.empty() && relativePath[0] == '/')
             relativePath.erase(0, 1);
-        if (!bestLocation->getAlias().empty())
+        if (bestLocation->getAlias().empty() && bestLocation->getRoot().empty())
+            resolvedPath = server._root + reqPath;
+        else if (!bestLocation->getAlias().empty())
         {
             std::string alias = bestLocation->getAlias();
             if (alias[alias.length() - 1] != '/')
@@ -55,12 +58,24 @@ std::string ServerUtils::resolveFilePath(Server &server, HttpRequestParser parse
         }
         else
         {
-            std::string root = bestLocation->getRoot();
-            std::string locationPath = bestLocation->getPath();
-            if (root.empty()) root = server._root;
-            if (root[root.length() - 1] != '/' && !locationPath.empty() && locationPath[0] != '/')
-                root += '/';
-            resolvedPath = root + locationPath;
+            std::string root = normalizePath(bestLocation->getRoot());
+            std::string locationPath = normalizePath(bestLocation->getPath());
+            std::string fileName;
+            size_t lastSlash = relativePath.find_last_of("/");
+            if (lastSlash != std::string::npos)
+                fileName = relativePath.substr(lastSlash + 1);
+            else 
+                fileName = relativePath;
+            if (fileName.find(".") == std::string::npos)
+                fileName = "";
+            std::string testPath = root + "/" + fileName;
+            std::cout << "tesst path "<< testPath<<std::endl;
+            bool isDir = isDirectory(testPath);
+            if (!isDir && !std::ifstream(testPath.c_str()).good())
+                root += locationPath;
+            else if (isDir && isDirectory(root + locationPath))
+                root += locationPath;
+            resolvedPath = root;
             if (!relativePath.empty())
             {
                 if (resolvedPath[resolvedPath.length() - 1] != '/')
@@ -74,13 +89,12 @@ std::string ServerUtils::resolveFilePath(Server &server, HttpRequestParser parse
         std::string root = server._root;
         if (!root.empty() && root[root.length() - 1] != '/')
             root += '/';     
-        if (!reqPath.empty() && reqPath[0] == '/')
-            reqPath.erase(0, 1);
-        if (reqPath.find("html/") != 0)
+        if (reqPath.find('.') != std::string::npos && reqPath.find(".html") != std::string::npos)
             resolvedPath = root + "html/" + reqPath;
         else
             resolvedPath = root + reqPath;
-    }  
+    } 
+    std::cout << "resolved path al final :"<< resolvedPath << std::endl;
     return urlDecode(resolvedPath);
 }
 
@@ -309,6 +323,7 @@ bool ServerUtils::isDirectory(const std::string &path)
 bool ServerUtils::findLocation(Server &server, const std::string &path)
 {
     std::string normalizedPath = normalizePath(path);
+    std::cout << "path en fl "<<normalizedPath << std::endl;
     const LocationConfig *bestMatch = NULL;
     size_t bestMatchLength = 0;
 
@@ -316,16 +331,33 @@ bool ServerUtils::findLocation(Server &server, const std::string &path)
     {
         std::string locationPath = normalizePath(it->getPath());
         std::string fullLocationPath;
-        if (!it->getAlias().empty())
+        if (it->getAlias().empty() && it->getRoot().empty())
+            fullLocationPath = server._root + normalizedPath;
+        else if (!it->getAlias().empty())
             fullLocationPath = normalizePath(it->getAlias());
         else
         {
-            std::string rootPath = normalizePath(it->getRoot().empty() ? server._root : it->getRoot());
-
-            fullLocationPath = rootPath;
-            if (!locationPath.empty() && locationPath != "/")
-                fullLocationPath +=  locationPath;
+            std::string root = normalizePath(it->getRoot());
+            std::string fileName;
+            size_t lastSlash = normalizedPath.find_last_of("/");
+            if (lastSlash != std::string::npos)
+                fileName = normalizedPath.substr(lastSlash + 1);
+            else 
+                fileName = normalizedPath;
+            if (fileName.find(".") == std::string::npos)
+                fileName = "";
+            std::string testPath = root + "/" + fileName;
+            bool isDir = isDirectory(testPath);
+            std::cout << "tesst path "<< testPath<< " "<<fileName<<std::endl;
+            if (!isDir && !std::ifstream(testPath.c_str()).good())
+                fullLocationPath = root + locationPath;
+            else if (isDir && isDirectory(root + locationPath))
+                fullLocationPath = root + locationPath;
+            else
+                fullLocationPath = root;
+            
         }
+        std::cout << "full path en fl "<<fullLocationPath << std::endl;
         size_t found = normalizedPath.find(fullLocationPath);
         if (found == 0 || (found != std::string::npos && (normalizedPath.length() == fullLocationPath.length() || normalizedPath[found + fullLocationPath.length()] == '/')))
         {
@@ -344,6 +376,7 @@ bool ServerUtils::findLocationConfig(Server &server, const std::string &path, st
     std::string normalizedPath = normalizePath(path);
     if (normalizedPath.find(server._root) != 0)
         normalizedPath = server._root + normalizedPath;
+    std::cout << "npath: "<< normalizedPath << std::endl;
     const LocationConfig *bestMatch = NULL;
     size_t bestMatchLength = 0;
 
@@ -352,7 +385,12 @@ bool ServerUtils::findLocationConfig(Server &server, const std::string &path, st
         std::string rootPath = normalizePath(it->getRoot().empty() ? server._root : it->getRoot());
         std::string locationPath = normalizePath(it->getPath());
         if (!locationPath.empty() && locationPath != "/")
-            rootPath +=  locationPath;
+        {
+            if (isDirectory(server._root + locationPath) && (rootPath.length() < locationPath.length() ||
+            rootPath.substr(rootPath.length() - locationPath.length()) != locationPath))
+                rootPath += locationPath;
+        }
+        std::cout << "Comparando: " << normalizedPath << " vs " << rootPath << std::endl;
         if (normalizedPath.compare(0, rootPath.length(), rootPath) == 0 &&
             (normalizedPath.length() == rootPath.length() || normalizedPath[rootPath.length()] == '/'))
         {
@@ -365,18 +403,28 @@ bool ServerUtils::findLocationConfig(Server &server, const std::string &path, st
     }
     if (bestMatch)
     {
+        std::cout<<"encuentra :"<<bestMatch->getPath()<<std::endl;
         locationIndex = bestMatch->getIndex();
         autoindexEnabled = bestMatch->isAutoindexEnabled();
-        std::string basePath;
-        if (!bestMatch->getAlias().empty())
-        {
-            basePath = normalizePath(bestMatch->getAlias());
-            filePath = basePath;
-        }
+        if (bestMatch->getAlias().empty() && bestMatch->getRoot().empty())
+            filePath = normalizePath(server._root);
+        else if (!bestMatch->getAlias().empty())
+            filePath = normalizePath(bestMatch->getAlias());
         else
         {
-            basePath = normalizePath(bestMatch->getRoot().empty() ? server._root : bestMatch->getRoot());
-            filePath = basePath + bestMatch->getPath();
+            std::string root = normalizePath(bestMatch->getRoot());
+            std::string locationPath = normalizePath(bestMatch->getPath());
+            if (!locationIndex.empty())
+            {
+                std::string testPath = root + "/" + locationIndex;
+                std::cout << "tesst path "<< testPath<<std::endl;
+                if (!std::ifstream(testPath.c_str()).good())
+                    root += locationPath;
+                filePath = root;
+            }
+            else
+                filePath = root;
+            
         }
         return true;
     }

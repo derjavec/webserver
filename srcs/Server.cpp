@@ -118,8 +118,8 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
     HttpRequestParser parser;
     try
     {
-        std::cout << "Contenido de clientBuffer:" << std::endl;
-        std::cout << std::string(clientBuffer.begin(), clientBuffer.end()) << std::endl;    
+        // std::cout << "Contenido de clientBuffer:" << std::endl;
+        // std::cout << std::string(clientBuffer.begin(), clientBuffer.end()) << std::endl;    
         int res = parser.parseRequest(clientBuffer);
         if (res !=0)
         {
@@ -133,8 +133,6 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             ServerErrors::handleErrors(*this, clientFd, 400);
             return;
         }
-        // if (parser.getMethod() != POST && ServerInit::handleImplicitRedirections(*this, clientFd, filePath))
-        //     return ;
         parser.setPath(filePath);
         std::string setCookieHeader = ServerInit::handleCookies(*this, parser, clientFd);
         std::string externalRedirect = ServerInit::handleRedirections(*this, parser);
@@ -159,6 +157,7 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             return;
         }
         filePath = ServerUtils::resolveFilePath(*this, parser);
+        std::cout<<"filePath "<<filePath<<std::endl;
         size_t dotPos = filePath.find_last_of(".");
         std::string fileExtension = (dotPos != std::string::npos) ? filePath.substr(dotPos + 1) : "";
         std::string scriptExecutor = ServerCGI::getScriptExecutor(fileExtension);
@@ -237,6 +236,7 @@ void Server::handleClientEvent(int clientFd, uint32_t events)
 bool Server::isMethodAllowed(const std::string &path, const std::string &method) const 
 {
     std::string normalizedPath = ServerUtils::normalizePath(path);
+    std::cout<< "path en IMA " << normalizedPath<<std::endl;
     const LocationConfig *bestMatch = NULL;
     size_t bestMatchLength = 0;
 
@@ -244,18 +244,35 @@ bool Server::isMethodAllowed(const std::string &path, const std::string &method)
     {
         std::string locationPath = ServerUtils::normalizePath(_locations[i].getPath());
         std::string fullLocationPath;
-
-        if (!_locations[i].getAlias().empty()) 
+        if (_locations[i].getAlias().empty() && _locations[i].getRoot().empty())
+            fullLocationPath = ServerUtils::normalizePath(_root + locationPath);
+        else if (!_locations[i].getAlias().empty()) 
             fullLocationPath = ServerUtils::normalizePath(_locations[i].getAlias());
         else
         {
-            std::string rootPath = ServerUtils::normalizePath(_locations[i].getRoot().empty() ? _root : _locations[i].getRoot());
-            fullLocationPath = rootPath;
-            if (!locationPath.empty() && locationPath != "/")
-                fullLocationPath +=  locationPath;
+            std::string root = ServerUtils::normalizePath(_locations[i].getRoot());
+            std::string fileName;
+            size_t lastSlash = normalizedPath.find_last_of("/");
+            if (lastSlash != std::string::npos)
+                fileName = normalizedPath.substr(lastSlash + 1);
+            else 
+                fileName = normalizedPath;
+            if (fileName.find(".") == std::string::npos)
+                fileName = "";
+            std::string testPath = root + "/" + fileName;
+            bool isDir = ServerUtils::isDirectory(testPath);
+            std::cout << "tesst path "<< testPath<<std::endl;
+            if (!isDir && !std::ifstream(testPath.c_str()).good())
+                fullLocationPath = root + locationPath;
+            else if (isDir && ServerUtils::isDirectory(root + locationPath))
+                fullLocationPath = root + locationPath;
+            else
+                fullLocationPath = root;
         }
-        if (normalizedPath.compare(0, fullLocationPath.length(), fullLocationPath) == 0 &&
-            (normalizedPath.length() == fullLocationPath.length() || normalizedPath[fullLocationPath.length()] == '/'))
+        std::cout<< "path en ISA " << fullLocationPath<<std::endl;
+        // if (normalizedPath.compare(0, fullLocationPath.length(), fullLocationPath) == 0 &&
+        //     (normalizedPath.length() == fullLocationPath.length() || normalizedPath[fullLocationPath.length()] == '/'))
+        if (normalizedPath.find(fullLocationPath) == 0)
         {
             if (fullLocationPath.length() > bestMatchLength)
             {
@@ -266,6 +283,7 @@ bool Server::isMethodAllowed(const std::string &path, const std::string &method)
     }
     if (bestMatch)
     {
+        std::cout << "encuentra : "<<bestMatch->getPath()<<std::endl;
         const std::vector<std::string> &methods = bestMatch->getMethods();
         if (methods.empty()) 
             return (method == "GET");

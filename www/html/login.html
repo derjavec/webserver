@@ -125,7 +125,7 @@
 
             const formData = new URLSearchParams();
             formData.append("session_id", cookies.session_id || "UNKNOWN");
-            formData.append("form_file", "form/login.csv");
+            formData.append("form_file", "login.csv");
 
             const response = await fetch("/check-session", {
                 method: "POST",
@@ -160,7 +160,7 @@
                 <button type="button" class="toggle-password" onclick="togglePassword()">👁️</button>
             </div>
 
-            <input type="hidden" name="form_file" value="form/login.csv">
+            <input type="hidden" name="form_file" value="login.csv">
             <button type="submit" class="btn">Sign In</button>
         </form>
 

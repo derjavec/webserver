@@ -227,8 +227,14 @@ void ServerConfig::validate() const
 {
     if (parameters.find("server_listen") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'listen' parameter.");
-    if (parameters.find("server_root") == parameters.end())
-        throw std::runtime_error("ServerConfig: Missing 'root' parameter.");
+    if (parameters.find("server_root") == parameters.end()) 
+    {
+        for (std::vector<LocationConfig>::const_iterator it = _locations.begin(); it != _locations.end(); ++it) 
+        {
+            if (it->getRedirect().empty() && it->getRoot().empty() && it->getAlias().empty()) 
+                throw std::runtime_error("ServerConfig: Missing 'root' parameter. At least one location has no root or alias.");
+        }
+    }          
     if (parameters.find("server_index") == parameters.end())
         throw std::runtime_error("ServerConfig: Missing 'index' parameter.");
     if (!directoryExists(_upload))

@@ -184,6 +184,7 @@ bool ServerPost::getFormFilePath(Server &server, const std::string& formFileName
     }
 
     formFilePath = formRoot + "/" + formFileName;
+    std::cout<<"formfilepath:"<<formFilePath<<std::endl;
     return true;
 }
 
