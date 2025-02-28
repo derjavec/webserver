@@ -1,15 +1,15 @@
 #include "ServerFolders.hpp"
 
-bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, const std::string &path, const std::string &url)
+bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, std::string filePath, std::string &url)
 {
     std::string locationIndex;
     bool autoindexEnabled = false;
-    std::string filePath;
-    if (!ResolvePaths::findLocationConfig(server, path, locationIndex, autoindexEnabled, filePath, url))
+    //std::string filePath;
+    if (!ResolvePaths::findLocationConfig(server, locationIndex, autoindexEnabled, url))
         return false;
     if (!locationIndex.empty())
     {
-        filePath = filePath + "/"+ locationIndex;
+        filePath = filePath + "/" + locationIndex;
         std::cout << filePath << std::endl;
         std::ifstream file(filePath.c_str());
         if (file.is_open())
@@ -37,7 +37,7 @@ bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, const st
     else
     {
         if (autoindexEnabled)
-            handleAutoIndex(server, clientFd, autoindexEnabled, path);
+            handleAutoIndex(server, clientFd, autoindexEnabled, filePath);
         else
             ServerErrors::handleErrors(server, clientFd, 403);
         return true;

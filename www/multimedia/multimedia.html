@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .file-list { margin-top: 20px; }
+        .file-item { display: flex; align-items: center; margin-bottom: 10px; }
+        .delete-btn { margin-left: 10px; color: red; cursor: pointer; }
+        .progress-container { width: 100%; background: #ccc; margin-top: 10px; height: 20px; border-radius: 5px; overflow: hidden; display: none; }
+        .progress-bar { width: 0%; height: 100%; background: #4caf50; text-align: center; color: white; line-height: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Upload and Manage Media Files</h1>
+
+    <!-- Formulario para subir archivos -->
+    <form id="uploadForm" enctype="multipart/form-data">
+        <input type="file" id="fileInput" name="file" accept="audio/*,video/*" required>
+        <button type="submit">Upload</button>
+    </form>
+
+    <!-- Barra de progreso -->
+    <div class="progress-container" id="progressContainer">
+        <div class="progress-bar" id="progressBar">0%</div>
+    </div>
+
+    <!-- Lista de archivos -->
+    <h2>Uploaded Media</h2>
+    <div class="file-list" id="fileList"></div>
+
+    <script>
+        const uploadForm = document.getElementById("uploadForm");
+        const fileList = document.getElementById("fileList");
+        const progressBar = document.getElementById("progressBar");
+        const progressContainer = document.getElementById("progressContainer");
+
+        // Función para obtener la lista de archivos y mostrarlos
+        async function fetchFiles() {
+            fileList.innerHTML = "";
+            const response = await fetch("/multimedia/");
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, "text/html");
+            const links = doc.querySelectorAll("a");
+
+            links.forEach(link => {
+                const fileName = link.textContent;
+                const extension = fileName.split('.').pop().toLowerCase(); // Obtener la extensión
+
+                // ⚠️ Evitar mostrar archivos HTML
+                if (fileName !== "." && fileName !== ".." && extension !== "html") {
+                    const fileItem = document.createElement("div");
+                    fileItem.classList.add("file-item");
+
+                    const mediaElement = createMediaElement(fileName);
+
+                    const deleteBtn = document.createElement("span");
+                    deleteBtn.textContent = "❌";
+                    deleteBtn.classList.add("delete-btn");
+                    deleteBtn.onclick = () => deleteFile(fileName);
+
+                    fileItem.appendChild(mediaElement);
+                    fileItem.appendChild(deleteBtn);
+                    fileList.appendChild(fileItem);
+                }
+            });
+        }
+
+
+        // Función para crear un elemento de audio o video
+        function createMediaElement(fileName) {
+            const extension = fileName.split('.').pop().toLowerCase();
+            let mediaElement;
+
+            if (["mp3", "wav", "ogg"].includes(extension)) {
+                mediaElement = document.createElement("audio");
+                mediaElement.controls = true;
+            } else if (["mp4", "webm", "ogg"].includes(extension)) {
+                mediaElement = document.createElement("video");
+                mediaElement.controls = true;
+                mediaElement.width = 300;
+            } else {
+                const link = document.createElement("a");
+                link.href = `/multimedia/${fileName}`;
+                link.textContent = fileName;
+                link.target = "_blank";
+                return link;
+            }
+
+            mediaElement.src = `/multimedia/${fileName}`;
+            return mediaElement;
+        }
+
+        // Función para eliminar un archivo
+        async function deleteFile(fileName) {
+            if (!confirm(`Are you sure you want to delete ${fileName}?`)) return;
+
+            const response = await fetch(`/multimedia/${fileName}`, { method: "DELETE" });
+            if (response.ok) {
+                alert("File deleted successfully!");
+                fetchFiles();
+            } else {
+                alert("Error deleting file.");
+            }
+        }
+
+        // Manejo de subida de archivos con barra de progreso
+        uploadForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const formData = new FormData(uploadForm);
+
+            progressBar.style.width = "0%";
+            progressBar.textContent = "0%";
+            progressContainer.style.display = "block";
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/multimedia", true);
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    let percent = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percent + "%";
+                    progressBar.textContent = percent + "%";
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    alert("File uploaded successfully!");
+                    fetchFiles();
+                } else {
+                    alert("Error uploading file.");
+                }
+                progressContainer.style.display = "none";
+            };
+
+            xhr.send(formData);
+        });
+
+        // Cargar lista de archivos al inicio
+        fetchFiles();
+    </script>
+</body>
+</html>

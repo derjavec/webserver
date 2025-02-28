@@ -51,7 +51,7 @@ bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<i
         {
             std::cerr << "❌ 408 Request Timeout: Header incomplete after 5 seconds." << std::endl;
             server._requestStartTime.erase(clientFd);
-            ServerErrors::handleErrors(server, clientFd, 400);
+            ServerErrors::handleErrors(server, clientFd, 408);
             return false;
         }
         std::cerr << "🛑 Header incomplete, waiting for more data..." << std::endl;
@@ -80,11 +80,11 @@ bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<i
     {
         elapsedTime = (double)(clock() - server._requestStartTime[clientFd]) / CLOCKS_PER_SEC;
         size_t endChunk = requestStr.find("\r\n0\r\n\r\n");
-        if (elapsedTime > 5.0)
+        if (elapsedTime > 10.0)
         {
             std::cerr << "❌ 408 Request Timeout: Transfer-Encoding incomplete after 5 seconds." << std::endl;
             server._requestStartTime.erase(clientFd);
-            ServerErrors::handleErrors(server, clientFd, 400);
+            ServerErrors::handleErrors(server, clientFd, 408);
             return false;
         }
         if (endChunk != std::string::npos)

@@ -87,16 +87,15 @@ void ServerGet::serveStaticFile(const std::map<int, SessionData> &clientSessions
         ServerErrors::handleErrors(server, clientFd, 404);
         return;
     }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string content = buffer.str();
+    file.close();
     if (content.empty())
     {
         ServerErrors::handleErrors(server, clientFd, 204);
         return ;
     } 
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    std::string content = buffer.str();
-    file.close();
-
     std::string setCookieHeader;
     if (clientSessions.find(clientFd) != clientSessions.end())
         setCookieHeader = "Set-Cookie: session_id=" + clientSessions.at(clientFd).sessionId + "; Path=/; HttpOnly\r\n";
@@ -122,9 +121,8 @@ void ServerGet::handleRawPost(int clientFd)
     close(clientFd);
 }
 
-void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser &parser, const std::string &contentType)
+void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser &parser, const std::string &contentType, std::string &filePath)
 {
-    std::string filePath = ResolvePaths::resolveFilePath(server, parser);
     std::map<std::string, std::string> headers = parser.getHeaders();
     if (headers.find("Content-Length") != headers.end())
     {
@@ -144,13 +142,14 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
         ServerErrors::handleErrors(server, clientFd, 417);
         return;
     }
-    if (ResolvePaths::findLocation(server, filePath) && !ResolvePaths::isMethodAllowed(server, filePath, "GET", parser.getPath()))
+    std::string url = parser.getPath();
+    if (ResolvePaths::findLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "GET", url))
     {
         std::cerr << "❌ Error: GET not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);
         return;
     }
-    if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath, ResolvePaths::doubleNormalizePath(parser.getPath())))
+    if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath, url))
         return;
     size_t fileSize = ServerUtils::getFileSize(filePath);
     if (fileSize > server._clientMaxBodySize)

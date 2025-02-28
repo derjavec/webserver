@@ -148,7 +148,8 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
         std::pair<std::string, std::string> fileInfo = parser.getContentType(filePath);
         std::string contentType = fileInfo.first;
         std::string fileCategory = fileInfo.second;
-        
+        if (ServerCGI::hasCGIPassInLoc(*this, parser.getPath()))
+            fileCategory = "script";
         if (parser.getMethod() == DELETE)
         {
             ServerDelete::handleDeleteRequest(*this, clientFd, parser);
@@ -156,12 +157,9 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
         }
         filePath = ResolvePaths::resolveFilePath(*this, parser);
         std::cout << "filePath :" << filePath << std::endl;
-        size_t dotPos = filePath.find_last_of(".");
-        std::string fileExtension = (dotPos != std::string::npos) ? filePath.substr(dotPos + 1) : "";
-        std::string scriptExecutor = ServerCGI::getScriptExecutor(fileExtension);
         if (fileCategory == "script")
         {
-            ServerCGI::executeCGI(clientFd, filePath, parser.ToString(parser.getMethod()), parser.getBody(), scriptExecutor);
+            ServerCGI::executeCGI(*this, clientFd, filePath, parser);
             return;
         }
         if (parser.getMethod() == POST)
@@ -169,7 +167,7 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             ServerPost::handlePostRequest(*this, clientFd, parser, clientBuffer);
             return;
         }
-        ServerGet::handleGetRequest(*this, clientFd, parser, contentType);
+        ServerGet::handleGetRequest(*this, clientFd, parser, contentType, filePath);
     }
     catch (const std::exception& e)
     {

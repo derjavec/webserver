@@ -457,7 +457,8 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
 void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestParser& parser, std::vector<char>& clientBuffer)
 {
     std::string filePath = ResolvePaths::resolveFilePath(server, parser);
-    if (ResolvePaths::findLocation(server, filePath) && !ResolvePaths::isMethodAllowed(server, filePath, "POST", parser.getPath()))
+    std::string url = parser.getPath();
+    if (ResolvePaths::findLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "POST", url))
     {
         std::cerr << "❌ Error: POST not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);

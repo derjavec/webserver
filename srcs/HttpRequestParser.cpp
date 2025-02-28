@@ -316,7 +316,7 @@ std::pair<std::string, std::string> HttpRequestParser::getContentType(const std:
     return std::make_pair("application/octet-stream", "unknown2");
 }
 
-std::string HttpRequestParser::ToString(HttpMethod method)
+const std::string HttpRequestParser::ToString(HttpMethod method)
 {
     switch (method)
     {
