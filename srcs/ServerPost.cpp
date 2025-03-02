@@ -465,6 +465,11 @@ void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestPars
         return;
     }
     std::map<std::string, std::string> headers = parser.getHeaders();
+    std::cout << "🔍 Headers recibidos:" << std::endl;
+    for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); ++it)
+    {
+        std::cout << it->first << ": " << it->second << std::endl;
+    }
     std::map<std::string, std::string>::iterator itCtype = headers.find("Content-Type");
     std::map<std::string, std::string> cookies = parser.getCookies();
     std::map<std::string, std::string>::iterator itCookies = cookies.find("session_id");
@@ -489,6 +494,7 @@ void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestPars
     std::map<std::string, std::string>::iterator itContentLength = headers.find("Content-Length");
     if (itContentLength != headers.end() && itContentLength->second == "0")
     {
+        std::cout << "manda 204" << std::endl;
         ServerErrors::handleErrors(server, clientFd, 204);
         return;
     }

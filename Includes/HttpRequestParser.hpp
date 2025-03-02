@@ -39,7 +39,7 @@ class HttpRequestParser
         int validateRequest() const;
         std::pair<std::string, std::string> getContentType(const std::string& filePath);
         bool stringToInt(const std::string& str, int &value);
-        const std::string ToString(HttpMethod method);
+        const std::string ToString(const HttpMethod &method);
 
     HttpMethod stringToMethod(const std::string& methodStr) const;
 };

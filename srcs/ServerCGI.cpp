@@ -106,11 +106,34 @@ void ServerCGI::handleCGIParentProcess(int clientFd, int pipefd[2], pid_t pid)
     close(clientFd);
 }
 
-void ServerCGI::executeCGI(Server &server, int clientFd, std::string &filePath, const HttpRequestParser &parser)
+void ServerCGI::executeCGI(Server &server, int clientFd, std::string &filePath, HttpRequestParser &parser)
 {
+    std::cout << "entra a cgi " <<std::endl;
     size_t dotPos = filePath.find_last_of(".");
     std::string fileExtension = (dotPos != std::string::npos) ? filePath.substr(dotPos + 1) : "";
     std::string scriptExecutor = getScriptExecutor(fileExtension);
+    std::vector<std::string> cgiPaths;   
+    std::vector<std::string> cgiExt;
+    std::string url = parser.getPath();
+    std::cout << url << std::endl;
+    if (ResolvePaths::findLocation(server, url) && !getCGIdataInLoc(server, url, cgiPaths, cgiExt))
+    {
+        std::cout << "sdf" << std::endl;
+        bool validExtension = cgiExt.empty() || (std::find(cgiExt.begin(), cgiExt.end(), fileExtension) != cgiExt.end());
+        if (cgiPaths.empty() || !validExtension)
+        {
+            std::cerr << "❌ CGI execution not allowed for: " << filePath << std::endl;
+            ServerErrors::handleErrors(server, clientFd, 403);
+            return;
+        }
+        scriptExecutor = cgiPaths[0]; 
+    }
+    std::cout << "acepta la location" << std::endl;
+    if (scriptExecutor.empty())
+    {
+        std::cerr << "No script executor found for: " << filePath << std::endl;
+        return;
+    }
     if (access(filePath.c_str(), F_OK) != 0)
     {
         std::cerr << "❌ Error: CGI script not found: " << filePath << std::endl;
@@ -124,24 +147,6 @@ void ServerCGI::executeCGI(Server &server, int clientFd, std::string &filePath, 
         return;
     }
     
-    std::vector<std::string> cgiPaths;   
-    std::vector<std::string> cgiExt;
-    if (ResolvePaths::findLocation(server, filePath) && getCGIdataInLoc(server, filePath, cgiPaths, cgiExt))
-    {
-        bool validExtension = cgiExt.empty() || (std::find(cgiExt.begin(), cgiExt.end(), fileExtension) != cgiExt.end());
-        if (cgiPaths.empty() || !validExtension)
-        {
-            std::cerr << "❌ CGI execution not allowed for: " << filePath << std::endl;
-            ServerErrors::handleErrors(server, clientFd, 403);
-            return;
-        }
-        scriptExecutor = cgiPaths[0]; 
-    }
-    if (scriptExecutor.empty())
-    {
-        std::cerr << "No script executor found for: " << filePath << std::endl;
-        return;
-    }
     int pipefd[2];
     if (pipe(pipefd) == -1)
     {
@@ -184,6 +189,15 @@ bool ServerCGI::getCGIdataInLoc(Server &server, std::string url, std::vector<std
     {
         cgiPaths = bestLocation->getCgiPath();
         cgiExt = bestLocation->getCgiPath();
+        if (cgiPaths.empty())
+            return false;
+        std::cout << "🔍 CGI Paths encontrados para URL: " << url << std::endl;
+        for (size_t i = 0; i < cgiPaths.size(); i++)
+            std::cout << " - Path[" << i << "]: " << cgiPaths[i] << std::endl;
+
+        std::cout << "🔍 CGI Extensions encontradas para URL: " << url << std::endl;
+        for (size_t i = 0; i < cgiExt.size(); i++)
+            std::cout << " - Ext[" << i << "]: " << cgiExt[i] << std::endl;
         return true;
     }
     return false;
