@@ -77,9 +77,8 @@ void ServerGet::serveLargeFileAsync(Server &server, int clientFd, const std::str
 }
 
 
-void ServerGet::serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &server, int clientFd, const std::string &filePath, const std::string &contentType)
+void serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &server, int clientFd, const std::string &filePath, const std::string &contentType)
 {
-    std::cout<<filePath<<std::endl;
     std::ifstream file(filePath.c_str(), std::ios::binary);
     if (!file.is_open())
     {
@@ -143,7 +142,7 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
         return;
     }
     std::string url = parser.getPath();
-    if (ResolvePaths::findLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "GET", url))
+    if (ResolvePaths::isLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "GET", url))
     {
         std::cerr << "❌ Error: GET not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);
@@ -154,9 +153,9 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
     size_t fileSize = ServerUtils::getFileSize(filePath);
     if (fileSize > server._clientMaxBodySize)
     {
-        ServerGet::serveLargeFileAsync(server, clientFd, filePath, contentType);
+        serveLargeFileAsync(server, clientFd, filePath, contentType);
         return;
     }
-    ServerGet::serveStaticFile(server._clientSessions, server, clientFd, filePath, contentType);
+    serveStaticFile(server._clientSessions, server, clientFd, filePath, contentType);
 }
 

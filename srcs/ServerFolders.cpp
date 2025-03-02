@@ -4,13 +4,12 @@ bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, std::str
 {
     std::string locationIndex;
     bool autoindexEnabled = false;
-    //std::string filePath;
+    
     if (!ResolvePaths::findLocationConfig(server, locationIndex, autoindexEnabled, url))
         return false;
     if (!locationIndex.empty())
     {
         filePath = filePath + "/" + locationIndex;
-        std::cout << filePath << std::endl;
         std::ifstream file(filePath.c_str());
         if (file.is_open())
         {

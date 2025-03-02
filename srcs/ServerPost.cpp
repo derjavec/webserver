@@ -1,6 +1,6 @@
 #include "ServerPost.hpp"
 
-UploadData ServerPost::parseFileUploadRequest(const std::vector<char>& requestBuffer)
+UploadData parseFileUploadRequest(const std::vector<char>& requestBuffer)
 {
     UploadData data;
 
@@ -63,7 +63,7 @@ UploadData ServerPost::parseFileUploadRequest(const std::vector<char>& requestBu
 }
 
 
-void ServerPost::handleBigFileUpload(Server &server, int clientFd, UploadData data, std::string filePath)
+void handleBigFileUpload(Server &server, int clientFd, UploadData data, std::string filePath)
 {
     std::ofstream outFile(filePath.c_str(), std::ios::binary | std::ios::app);
     if (!outFile)
@@ -83,7 +83,7 @@ void ServerPost::handleBigFileUpload(Server &server, int clientFd, UploadData da
     outFile.close();
 }
 
-void ServerPost::handleSmallFileUpload(Server &server, int clientFd, UploadData data, std::string filePath)
+void handleSmallFileUpload(Server &server, int clientFd, UploadData data, std::string filePath)
 {
         std::ofstream outFile(filePath.c_str(), std::ios::binary);
         if (!outFile)
@@ -101,7 +101,6 @@ void ServerPost::handleFileUpload(Server &server, int clientFd, const std::vecto
 {
     UploadData data = parseFileUploadRequest(requestBuffer);
     std::string uploadDir = server._upload;
-    std::cout<< "data :"<<data.filename<< " "<<data.fileContent<<std::endl;
     if (data.filename.empty() || data.fileContent.empty())
     {
         std::cerr << "❌ Invalid upload request" << std::endl;
@@ -154,7 +153,7 @@ std::string ServerPost::getRootFromForm(Server &server)
     return "";
 }
 
-bool ServerPost::extractFormData(const std::vector<char>& clientBuffer, std::string& formData)
+bool extractFormData(const std::vector<char>& clientBuffer, std::string& formData)
 {
     std::string requestStr(clientBuffer.begin(), clientBuffer.end());
     size_t headerEndPos = requestStr.find("\r\n\r\n");
@@ -170,7 +169,6 @@ bool ServerPost::extractFormData(const std::vector<char>& clientBuffer, std::str
 
 bool ServerPost::getFormFilePath(Server &server, const std::string& formFileName, std::string& formFilePath)
 {
-    std::cout<<"name :"<<formFileName<<std::endl;
     if (formFileName.empty())
     {
         std::cerr << "❌ formFileName is empty" << std::endl;
@@ -184,11 +182,10 @@ bool ServerPost::getFormFilePath(Server &server, const std::string& formFileName
     }
 
     formFilePath = formRoot + "/" + formFileName;
-    std::cout<<"formfilepath:"<<formFilePath<<std::endl;
     return true;
 }
 
-bool ServerPost::writeFormData(const std::string& formFilePath, const std::map<std::string, std::string>& formFields, std::string sessionId)
+bool writeFormData(const std::string& formFilePath, const std::map<std::string, std::string>& formFields, std::string sessionId)
 {
     bool fileExists = (access(formFilePath.c_str(), F_OK) == 0);
     std::fstream formFile(formFilePath.c_str(), std::ios::out | std::ios::app);
@@ -221,7 +218,7 @@ bool ServerPost::writeFormData(const std::string& formFilePath, const std::map<s
     return true;
 }
 
-std::string ServerPost::verifyLogin(const std::string& filePath, const std::map<std::string, std::string>& formFields)
+std::string verifyLogin(const std::string& filePath, const std::map<std::string, std::string>& formFields)
 {
     std::ifstream file(filePath.c_str());
     if (!file.is_open())
@@ -287,7 +284,6 @@ void ServerPost::handleFormLogin(Server &server, int clientFd, std::vector<char>
     if (formFields.empty())
         return ;
     std::string storedSessionId = verifyLogin(formFilePath, formFields);
-    std::cout << storedSessionId<<std::endl;
     if (storedSessionId.empty())
     {
         ServerErrors::handleErrors(server, clientFd, 500);
@@ -368,7 +364,7 @@ void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<
     close(clientFd);
 }
     
-std::string ServerPost::findUsernameBySessionId(const std::string &filePath, const std::string &sessionId)
+std::string findUsernameBySessionId(const std::string &filePath, const std::string &sessionId)
 {
     std::ifstream file(filePath.c_str());
     if (!file.is_open())
@@ -413,7 +409,6 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
         return false;
     std::time_t currentTime = std::time(NULL);
     std::time_t timeElapsed = currentTime - it->second.connectionTime;
-    std::cout<< "time : "<<timeElapsed<<std::endl;
     if (timeElapsed > 300)
     {
         it->second.isLoggedIn = false;
@@ -434,7 +429,6 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
         return false;
     }
     std::string username = findUsernameBySessionId(formFilePath, sessionId);
-    std::cout << "username :" << username << std::endl;
     if (username.empty())
     {
         std::cerr << "❌ No active session found." << std::endl;
@@ -458,18 +452,13 @@ void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestPars
 {
     std::string filePath = ResolvePaths::resolveFilePath(server, parser);
     std::string url = parser.getPath();
-    if (ResolvePaths::findLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "POST", url))
+    if (ResolvePaths::isLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "POST", url))
     {
         std::cerr << "❌ Error: POST not allowed for this location." << std::endl;
         ServerErrors::handleErrors(server, clientFd, 405);
         return;
     }
     std::map<std::string, std::string> headers = parser.getHeaders();
-    std::cout << "🔍 Headers recibidos:" << std::endl;
-    for (std::map<std::string, std::string>::iterator it = headers.begin(); it != headers.end(); ++it)
-    {
-        std::cout << it->first << ": " << it->second << std::endl;
-    }
     std::map<std::string, std::string>::iterator itCtype = headers.find("Content-Type");
     std::map<std::string, std::string> cookies = parser.getCookies();
     std::map<std::string, std::string>::iterator itCookies = cookies.find("session_id");
@@ -494,7 +483,6 @@ void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestPars
     std::map<std::string, std::string>::iterator itContentLength = headers.find("Content-Length");
     if (itContentLength != headers.end() && itContentLength->second == "0")
     {
-        std::cout << "manda 204" << std::endl;
         ServerErrors::handleErrors(server, clientFd, 204);
         return;
     }

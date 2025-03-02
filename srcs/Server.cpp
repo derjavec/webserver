@@ -131,7 +131,8 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             ServerErrors::handleErrors(*this, clientFd, 400);
             return;
         }
-        parser.setPath(filePath);
+        parser.setPath(ResolvePaths::normalizePath(filePath));
+        filePath = parser.getPath();
         std::string setCookieHeader = ServerInit::handleCookies(*this, parser, clientFd);
         std::string externalRedirect = ServerInit::handleRedirections(*this, parser);
         if (!externalRedirect.empty())
@@ -156,7 +157,6 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             return;
         }
         filePath = ResolvePaths::resolveFilePath(*this, parser);
-        std::cout << "filePath :" << filePath << std::endl;
         if (fileCategory == "script")
         {
             ServerCGI::executeCGI(*this, clientFd, filePath, parser);

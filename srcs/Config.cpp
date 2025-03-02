@@ -69,7 +69,7 @@ bool Config::validateConfigFile(const std::string& filePath, std::ifstream& conf
 }
 
 
-int Config::stringToInt(const std::string& str)
+int stringToInt(const std::string& str)
 {
     std::stringstream ss(str);
     int value;

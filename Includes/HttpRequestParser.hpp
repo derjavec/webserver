@@ -3,6 +3,7 @@
 
 #include "Webserver.hpp"
 #include "Config.hpp"
+#include "ServerUtils.hpp"
 
 enum HttpMethod { GET, POST, DELETE, PUT, HEAD, PATCH, OPTIONS, TRACE, CONNECT, INVALID};
 const std::string nonRepeatableHeaders[4] = {
@@ -33,15 +34,15 @@ class HttpRequestParser
         std::string getBody() const;
         void setType(const std::string& path);
         std::pair<std::string, std::string> getType() const;
-        bool hasExtraSpaces(const std::string& line);
         int parseRequestLine(const std::string& line);
         int parseHeader(const std::string& line);
         int validateRequest() const;
         std::pair<std::string, std::string> getContentType(const std::string& filePath);
-        bool stringToInt(const std::string& str, int &value);
-        const std::string ToString(const HttpMethod &method);
-
-    HttpMethod stringToMethod(const std::string& methodStr) const;
+        const std::string methodToString(const HttpMethod &method);
+        HttpMethod stringToMethod(const std::string& methodStr) const;
 };
+
+bool hasExtraSpaces(const std::string& line);
+bool stringToInt(const std::string& str, int &value);
 
 #endif

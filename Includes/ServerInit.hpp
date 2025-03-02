@@ -11,4 +11,5 @@ class ServerInit
         static std::string handleRedirections(Server &server, HttpRequestParser &parser);
 };
 
+std::string extractPathFromURL(const std::string &url);
 #endif

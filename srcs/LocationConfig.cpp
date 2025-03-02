@@ -25,13 +25,38 @@ LocationConfig& LocationConfig::operator=(const LocationConfig& obj)
     return *this;
 }
 
+std::vector<std::string> splitString(const std::string &str)
+{
+    std::vector<std::string> result;
+    std::istringstream iss(str);
+    std::string word;
+
+    while (iss >> word)  // Divide la cadena por espacios
+        result.push_back(word);
+
+    return result;
+}
+
 void LocationConfig::setPath(const std::string& path) { _path = path; }
 void LocationConfig::setRoot(const std::string& root) { _root = root; }
 void LocationConfig::setAlias(const std::string& alias) { _alias = alias; }
 void LocationConfig::setIndex(const std::string& index) { _index = index; }
 void LocationConfig::setAutoindex(bool autoindex) { _autoindex = autoindex; }
-void LocationConfig::addCgiPath(const std::string& path) { _cgiPath.push_back(path); }
-void LocationConfig::addCgiExtension(const std::string& ext) { _cgiExt.push_back(ext); }
+void LocationConfig::addCgiPath(const std::string& path)
+{
+    std::vector<std::string> paths = splitString(path);
+    for (size_t i = 0; i < paths.size(); i++)
+        _cgiPath.push_back(paths[i]);
+}
+
+void LocationConfig::addCgiExtension(const std::string& ext)
+{
+    std::vector<std::string> extensions = splitString(ext);
+    for (size_t i = 0; i < extensions.size(); i++)
+        _cgiExt.push_back(extensions[i]);
+}
+// void LocationConfig::addCgiPath(const std::string& path) { _cgiPath.push_back(path); }
+// void LocationConfig::addCgiExtension(const std::string& ext) { _cgiExt.push_back(ext); }
 void LocationConfig::setRedirect(const std::string& redirect) { _redirect = redirect; }
 void LocationConfig::setClientMaxBodySize(unsigned long size) { _clientMaxBodySize = size; }
 void LocationConfig::addMethod(const std::string& method) { _methods.push_back(method); }

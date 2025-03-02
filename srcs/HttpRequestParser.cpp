@@ -91,7 +91,7 @@ HttpMethod HttpRequestParser::stringToMethod(const std::string& methodStr) const
     return INVALID;
 }
 
-bool HttpRequestParser::hasExtraSpaces(const std::string& line)
+bool hasExtraSpaces(const std::string& line)
 {
     bool foundSpace = false;
 
@@ -218,7 +218,7 @@ int HttpRequestParser::validateRequest() const
 }
 
 
-bool HttpRequestParser::stringToInt(const std::string& str, int &value)
+bool stringToInt(const std::string& str, int &value)
 {
     std::stringstream ss(str);
     ss >> value;
@@ -232,7 +232,7 @@ bool HttpRequestParser::stringToInt(const std::string& str, int &value)
 
 std::pair<std::string, std::string> HttpRequestParser::getContentType(const std::string& filePath)
 {
-    if (!filePath.empty() && filePath[filePath.size() - 1] == '/')
+    if (!filePath.empty() && ServerUtils::isDirectory(filePath))
         return std::make_pair("text/html", "html");
     size_t dotPos = filePath.find_last_of(".");
     if (dotPos == std::string::npos)
@@ -316,7 +316,7 @@ std::pair<std::string, std::string> HttpRequestParser::getContentType(const std:
     return std::make_pair("application/octet-stream", "unknown2");
 }
 
-const std::string HttpRequestParser::ToString(const HttpMethod &method)
+const std::string HttpRequestParser::methodToString(const HttpMethod &method)
 {
     switch (method)
     {

@@ -15,6 +15,9 @@ class ServerUtils
 {      
     public:
         static int extractContentLength(int clientFd, std::map<int, int>& expectedContentLength, std::map<int, std::vector<char> >& clientBuffers);
+        static bool isHeaderComplete(Server &server, int clientFd, const std::string &requestStr, std::string &method);
+        static bool validateContentLengthAndEncoding(Server &server, int clientFd, std::string &requestStr, std::map<int, int> &expectedContentLength, std::map<int, std::vector<char> > &clientBuffers);
+        static bool handleTransferEncodingOrMultipart(Server &server, int clientFd, std::string &requestStr, std::map<int, std::vector<char> > &clientBuffers);
         static bool requestCompletelyRead(Server &server, int clientFd, std::map<int, int>& expectedContentLength, std::map<int, std::vector<char> >& clientBuffers);
         static bool isValidURL(const std::string &url);
         static bool isDirectory(const std::string &path);

@@ -34,19 +34,18 @@ int ServerUtils::extractContentLength(int clientFd, std::map<int, int>& expected
     return (0);
 }
 
-bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<int, int>& expectedContentLength, std::map<int, std::vector<char> >& clientBuffers)
+bool ServerUtils::isHeaderComplete(Server &server, int clientFd, const std::string &requestStr, std::string &method)
 {
     if (server._requestStartTime.find(clientFd) == server._requestStartTime.end())
         server._requestStartTime[clientFd] = clock();
-    double elapsedTime = 0;
-    std::string requestStr(clientBuffers[clientFd].begin(), clientBuffers[clientFd].end());
+
     std::istringstream requestStream(requestStr);
-    std::string method;
     requestStream >> method;
+
     size_t headerEndPos = requestStr.find("\r\n\r\n");
     if (headerEndPos == std::string::npos)
     {
-        elapsedTime = (double)(clock() - server._requestStartTime[clientFd]) / CLOCKS_PER_SEC;
+        double elapsedTime = (double)(clock() - server._requestStartTime[clientFd]) / CLOCKS_PER_SEC;
         if (elapsedTime > 5.0)
         {
             std::cerr << "❌ 408 Request Timeout: Header incomplete after 5 seconds." << std::endl;
@@ -57,15 +56,22 @@ bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<i
         std::cerr << "🛑 Header incomplete, waiting for more data..." << std::endl;
         return false;
     }
+    return true;
+}
+
+bool ServerUtils::validateContentLengthAndEncoding(Server &server, int clientFd, std::string &requestStr, std::map<int, int> &expectedContentLength, std::map<int, std::vector<char> > &clientBuffers)
+{
     expectedContentLength[clientFd] = extractContentLength(clientFd, expectedContentLength, clientBuffers);
     size_t transferEncodingPos = requestStr.find("Transfer-Encoding: chunked");
+
     if (expectedContentLength[clientFd] > 0 && transferEncodingPos != std::string::npos)
     {
-        std::cerr << "❌ 400 Bad Request: Content Length and Transfer Encoding found" << std::endl;
+        std::cerr << "❌ 400 Bad Request: Content-Length and Transfer-Encoding found" << std::endl;
         server._requestStartTime.erase(clientFd);
         ServerErrors::handleErrors(server, clientFd, 400);
         return false;
     }
+
     if (expectedContentLength[clientFd] > 0)
     {
         if (static_cast<int>(clientBuffers[clientFd].size()) >= expectedContentLength[clientFd])
@@ -75,18 +81,25 @@ bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<i
         }
         return false;
     }
+    return true;
+}
 
-    if (method == "POST" && transferEncodingPos != std::string::npos)
+bool ServerUtils::handleTransferEncodingOrMultipart(Server &server, int clientFd, std::string &requestStr, std::map<int, std::vector<char> > &clientBuffers)
+{
+    size_t transferEncodingPos = requestStr.find("Transfer-Encoding: chunked");
+    if (transferEncodingPos != std::string::npos)
     {
-        elapsedTime = (double)(clock() - server._requestStartTime[clientFd]) / CLOCKS_PER_SEC;
+        double elapsedTime = (double)(clock() - server._requestStartTime[clientFd]) / CLOCKS_PER_SEC;
         size_t endChunk = requestStr.find("\r\n0\r\n\r\n");
+
         if (elapsedTime > 10.0)
         {
-            std::cerr << "❌ 408 Request Timeout: Transfer-Encoding incomplete after 5 seconds." << std::endl;
+            std::cerr << "❌ 408 Request Timeout: Transfer-Encoding incomplete after 10 seconds." << std::endl;
             server._requestStartTime.erase(clientFd);
             ServerErrors::handleErrors(server, clientFd, 408);
             return false;
         }
+
         if (endChunk != std::string::npos)
         {
             server._requestStartTime.erase(clientFd);
@@ -98,21 +111,25 @@ bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<i
         }
         return false;
     }
+
     size_t contentTypePos = requestStr.find("Content-Type: multipart/form-data");
     if (contentTypePos != std::string::npos)
     {
         static std::map<int, std::string> boundaryMap;
         size_t boundaryPos = requestStr.find("boundary=", contentTypePos);
+
         if (boundaryPos != std::string::npos)
         {
             std::string extractedBoundary = requestStr.substr(boundaryPos + 9);
             size_t endBoundary = extractedBoundary.find_first_of("\r\n ");
             if (endBoundary != std::string::npos)
                 extractedBoundary = extractedBoundary.substr(0, endBoundary);
+
             extractedBoundary = "--" + extractedBoundary;
             if (boundaryMap.find(clientFd) == boundaryMap.end())
                 boundaryMap[clientFd] = extractedBoundary;
         }
+
         std::string endingBoundary = boundaryMap[clientFd] + "--";
         size_t secondBoundaryPos = requestStr.rfind(endingBoundary);
         if (secondBoundaryPos != std::string::npos)
@@ -122,8 +139,24 @@ bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<i
         }
         return false;
     }
-    server._requestStartTime.erase(clientFd);
+    return true;
+}
 
+bool ServerUtils::requestCompletelyRead(Server &server, int clientFd, std::map<int, int> &expectedContentLength, std::map<int, std::vector<char> > &clientBuffers)
+{
+    std::string method;
+    std::string requestStr(clientBuffers[clientFd].begin(), clientBuffers[clientFd].end());
+
+    if (!isHeaderComplete(server, clientFd, requestStr, method))
+        return false;
+
+    if (!validateContentLengthAndEncoding(server, clientFd, requestStr, expectedContentLength, clientBuffers))
+        return false;
+
+    if (!handleTransferEncodingOrMultipart(server, clientFd, requestStr, clientBuffers))
+        return false;
+
+    server._requestStartTime.erase(clientFd);
     return true;
 }
 
@@ -201,3 +234,5 @@ std::string ServerUtils::trim(std::string &str)
     size_t end = str.find_last_not_of(" \t\n\r");
     return str.substr(start, end - start + 1);
 }
+
+

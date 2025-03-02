@@ -53,6 +53,19 @@ void ServerInit::handleMultiPorts(Server&server, const std::vector<uint16_t>& po
     }
 }
 
+std::string extractPathFromURL(const std::string &url)
+{
+    size_t pos = url.find("://");
+    if (pos != std::string::npos)
+    {
+        pos = url.find('/', pos + 3);
+        if (pos != std::string::npos)
+            return url.substr(pos);
+    }
+    return url;
+}
+
+
 std::string ServerInit::handleRedirections(Server &server, HttpRequestParser &parser)
 {
     std::string externalRedirect;
@@ -61,7 +74,7 @@ std::string ServerInit::handleRedirections(Server &server, HttpRequestParser &pa
     {
         if (ResolvePaths::normalizePath(parser.getPath()) == ResolvePaths::normalizePath(it->getPath()) && !it->getRedirect().empty())
         {
-            const std::string &redirectTarget = ResolvePaths::extractPathFromURL(it->getRedirect());
+            const std::string &redirectTarget = extractPathFromURL(it->getRedirect());
             for (std::vector<LocationConfig>::const_iterator locIt = server._locations.begin(); locIt != server._locations.end(); ++locIt)
             {
                 if (ResolvePaths::normalizePath(redirectTarget) == ResolvePaths::normalizePath(locIt->getPath()))
