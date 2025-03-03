@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to the Images Page</title>
+</head>
+<body>
+    <h1>Welcome to the Image Gallery</h1>
+    <p>Here is an image from this folder:</p>
+    <img src="default.jpg" alt="Default Image" width="500">
+</body>
+</html>

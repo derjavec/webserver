@@ -4,7 +4,6 @@ bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, std::str
 {
     std::string locationIndex;
     bool autoindexEnabled = false;
-    
     if (!ResolvePaths::findLocationConfig(server, locationIndex, autoindexEnabled, url))
         return false;
     if (!locationIndex.empty())
@@ -24,6 +23,7 @@ bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, std::str
             }        
             std::string response = "HTTP/1.1 200 OK\r\n";
             response += "Content-Type: text/html\r\n";
+            response += "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
             response += "Content-Length: " + ServerUtils::numberToString(content.size()) + "\r\n";
             response += "\r\n";
             response += content;

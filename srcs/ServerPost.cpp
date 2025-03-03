@@ -119,8 +119,8 @@ void ServerPost::handleFileUpload(Server &server, int clientFd, const std::vecto
         response += "Content-Length: " + ServerUtils::numberToString(body.size()) + "\r\n\r\n";
         response += body;
         send(clientFd, response.c_str(), response.size(), 0);
-        shutdown(clientFd, SHUT_WR);
-        close(clientFd);
+        // shutdown(clientFd, SHUT_WR);
+        // close(clientFd);
         return;
     }
     file.close();
@@ -309,8 +309,8 @@ void ServerPost::handleFormLogin(Server &server, int clientFd, std::vector<char>
     response += "Location: /welcome.html?user=" + username + "\r\n";
     response += "Content-Length: 0\r\n\r\n";
     send(clientFd, response.c_str(), response.size(), 0);
-    shutdown(clientFd, SHUT_WR);
-    close(clientFd);
+    // shutdown(clientFd, SHUT_WR);
+    // close(clientFd);
 }
 
 void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<char>& clientBuffer, const std::string &sessionId, const std::string &path)
@@ -333,8 +333,8 @@ void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<
                                     "Content-Length: 67\r\n\r\n"
                                     "<html><body>User already has an account!</body></html>";
                 send(clientFd, response.c_str(), response.size(), 0);
-                shutdown(clientFd, SHUT_WR);
-                close(clientFd);
+                // shutdown(clientFd, SHUT_WR);
+                // close(clientFd);
                 return;
             }
         }
@@ -360,8 +360,8 @@ void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<
         response += body;
     }    
     send(clientFd, response.c_str(), response.size(), 0);
-    shutdown(clientFd, SHUT_WR);
-    close(clientFd);
+    // shutdown(clientFd, SHUT_WR);
+    // close(clientFd);
 }
     
 std::string findUsernameBySessionId(const std::string &filePath, const std::string &sessionId)
@@ -438,11 +438,11 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
     response += "Set-Cookie: session_id=" + sessionId + "; Path=/\r\n";
     response += "Content-Type: text/plain\r\n";
     response += "Content-Length: " + ServerUtils::numberToString(username.size()) + "\r\n";
-    response += "Connection: close\r\n\r\n";
+    response += "\r\n";
     response += username;
     send(clientFd, response.c_str(), response.size(), 0);
-    shutdown(clientFd, SHUT_WR);
-    close(clientFd);
+    // shutdown(clientFd, SHUT_WR);
+    // close(clientFd);
     return true;
 }
 
@@ -500,8 +500,8 @@ void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestPars
         handleFormSubmission(server, clientFd, clientBuffer, sessionId, parser.getPath());
     else if (contentType.find("multipart/form-data") != std::string::npos)
         handleFileUpload(server, clientFd, clientBuffer);
-    else if (contentType == "application/octet-stream")
-        ServerGet::handleRawPost(clientFd);
+    else if (contentType == "application/octet-stream" || contentType == "text/plain")
+        ServerGet::handleRawPost(server, clientFd, clientBuffer);
     else
         ServerErrors::handleErrors(server, clientFd, 415);
 }

@@ -4,9 +4,13 @@ const LocationConfig* ResolvePaths::findBestLocation(Server &server, std::string
 {
     const LocationConfig* bestMatch = NULL;
     path = doubleNormalizePath(normalizePath(path));
+    if (!path.empty() && path[path.size() - 1] != '/')
+            path = path + "/";
     for (size_t i = 0; i < server._locations.size(); ++i)
     {
         std::string locPath = normalizePath(server._locations[i].getPath());
+        if (!locPath.empty() && locPath[locPath.size() - 1] != '/')
+            locPath = locPath + "/";
         if (path.find(locPath) == 0)
         {
             if (locPath.length() > bestMatchLength)
@@ -68,6 +72,7 @@ bool ResolvePaths::findLocationConfig(Server &server, std::string &locationIndex
     const LocationConfig *bestMatch = findBestLocation(server, url, bestMatchLength);
     if (bestMatch)
     {
+
         locationIndex = bestMatch->getIndex();
         autoindexEnabled = bestMatch->isAutoindexEnabled();
         return true;

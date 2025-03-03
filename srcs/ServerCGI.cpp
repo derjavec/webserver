@@ -73,7 +73,7 @@ void ServerCGI::handleCGIChildProcess(int pipefd[2], const std::string &scriptEx
     exit(1);
 }
 
-void ServerCGI::handleCGIParentProcess(int clientFd, int pipefd[2], pid_t pid)
+void ServerCGI::handleCGIParentProcess(Server &server, int clientFd, int pipefd[2], pid_t pid)
 {
 	
 	close(pipefd[1]);
@@ -99,6 +99,7 @@ void ServerCGI::handleCGIParentProcess(int clientFd, int pipefd[2], pid_t pid)
     else
         httpResponse += "Content-Type: text/html\r\n";
     httpResponse += "Content-Length: " + ServerUtils::numberToString(cgiOutput.size()) + "\r\n";
+    httpResponse += "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
     httpResponse += "\r\n";
     httpResponse += cgiOutput;
     send(clientFd, httpResponse.c_str(), httpResponse.size(), 0);
@@ -139,8 +140,8 @@ void ServerCGI::executeCGI(Server &server, int clientFd, std::string &filePath, 
                             "Content-Length: 74\r\n\r\n"
                             "<html><body><h1>404 Not Found</h1><p>CGI script not found.</p></body></html>";
         send(clientFd, response.c_str(), response.size(), 0);
-        shutdown(clientFd, SHUT_WR);
-        close(clientFd);
+        // shutdown(clientFd, SHUT_WR);
+        // close(clientFd);
         return;
     }
     
@@ -161,7 +162,7 @@ void ServerCGI::executeCGI(Server &server, int clientFd, std::string &filePath, 
     if (pid == 0)
         handleCGIChildProcess(pipefd, scriptExecutor, filePath, method, body);
     else
-        handleCGIParentProcess(clientFd, pipefd, pid);
+        handleCGIParentProcess(server, clientFd, pipefd, pid);
 }
 
 bool ServerCGI::hasCGIPassInLoc(Server &server, std::string url)

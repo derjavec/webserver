@@ -13,14 +13,17 @@ std::string ServerInit::handleCookies(Server &server, HttpRequestParser &parser,
         server._clientSessions[clientFd].isLoggedIn = false;
     server._clientSessions[clientFd].sessionId = sessionId;        
     std::string setCookieHeader = "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n"; 
+    
     return (setCookieHeader);
 }
 
 void ServerInit::handleMultiPorts(Server&server, const std::vector<uint16_t>& ports)
 {
+    int opt_val = 1;
     for (size_t i = 0; i < ports.size(); ++i)
     {
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_val));
         if (sockfd == -1)
             throw ServerException("Failed to create socket: " + std::string(strerror(errno)));
         int flags = fcntl(sockfd, F_GETFL, 0);
@@ -87,6 +90,6 @@ std::string ServerInit::handleRedirections(Server &server, HttpRequestParser &pa
             externalRedirect = redirectTarget;
             return (externalRedirect);
         }
-    }
+    }    
     return (externalRedirect);
 }

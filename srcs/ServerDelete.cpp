@@ -50,6 +50,6 @@ void ServerDelete::handleDeleteRequest(Server &server, int clientFd, HttpRequest
     }
     else
         ServerErrors::handleErrors(server, clientFd, 500);
-    shutdown(clientFd, SHUT_WR);
-    close(clientFd);
+    // shutdown(clientFd, SHUT_WR);
+    // close(clientFd);
 }

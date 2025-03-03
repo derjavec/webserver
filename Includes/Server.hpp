@@ -51,6 +51,7 @@ class Server
         friend class ServerInit;
         friend class ServerPost;
         friend class ServerGet;
+        friend class ServerCGI;
         friend class ServerFolders;
         friend class ServerErrors;
         friend class ResolvePaths;

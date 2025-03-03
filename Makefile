@@ -1,6 +1,6 @@
 NAME = webserv
 CXX = c++
-CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -IIncludes
+CXXFLAGS = -Wall -Wextra -Werror -std=c++98 -IIncludes -g3
 
 RESET = \033[0m
 PASTEL_PINK = \033[38;5;218m

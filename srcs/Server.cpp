@@ -142,8 +142,6 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             response += "Location: " + externalRedirect + "\r\n";
             response += "Content-Length: 0\r\n\r\n";
             send(clientFd, response.c_str(), response.size(), 0);
-            shutdown(clientFd, SHUT_WR);
-            close(clientFd);
             return;
         }
         std::pair<std::string, std::string> fileInfo = parser.getContentType(filePath);
@@ -176,8 +174,8 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
         response += "Set-Cookie: session_id=" + _clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
         response += "Content-Length: 0\r\n\r\n";
         send(clientFd, response.c_str(), response.size(), 0);
-        shutdown(clientFd, SHUT_WR);
-        close(clientFd);
+        // shutdown(clientFd, SHUT_WR);
+        // close(clientFd);
     }
 }
 
@@ -249,16 +247,16 @@ void Server::run()
         {
             int eventFd = events[i].data.fd;
             uint32_t eventType = events[i].events;
-            bool isListening = false;
-            for (size_t j = 0; j < _listeningSockets.size(); ++j)
-            {
-                if (eventFd == _listeningSockets[j])
-                {
-                    isListening = true;
-                    break;
-                }
-            }
-            if (isListening)
+            // bool isListening = false;
+            // for (size_t j = 0; j < _listeningSockets.size(); ++j)
+            // {
+            //     if (eventFd == _listeningSockets[j])
+            //     {
+            //         isListening = true;
+            //         break;
+            //     }
+            // }
+            if (eventFd == _serverFd)
             {
                 sockaddr_in clientAddress;
                 try

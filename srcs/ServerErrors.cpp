@@ -32,6 +32,7 @@ void ServerErrors::handleErrors(Server &server, int clientFd, int code)
 
         std::string response = "HTTP/1.1 " + ServerUtils::numberToString(code) + " " + getStatusMessage(code) + "\r\n";
         response += "Content-Type: text/html\r\n";
+        response += "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
         response += "Content-Length: " + ServerUtils::numberToString(errorContent.size()) + "\r\n\r\n";
         response += errorContent;
 
@@ -43,8 +44,10 @@ void ServerErrors::handleErrors(Server &server, int clientFd, int code)
         std::cerr << "⚠️ Error page not found: " << errorFilePath << std::endl;
         sendGenericErrorResponse(clientFd, code);
     }
-    shutdown(clientFd, SHUT_WR);
-    close(clientFd);
+    //shutdown(clientFd, SHUT_WR);
+    //close(clientFd);
+    //TODO
+    // stop close fd
 }
 
 std::string ServerErrors::getStatusMessage(int code)

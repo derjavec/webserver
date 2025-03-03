@@ -65,10 +65,11 @@ void ServerGet::serveLargeFileAsync(Server &server, int clientFd, const std::str
     fstat(fileFd, &fileStat);
 
     std::string response = "HTTP/1.1 200 OK\r\n"
-                           "Content-Type:" + ContentType + "\r\n"
-                           "Content-Length: " + ServerUtils::numberToString(fileStat.st_size) + "\r\n\r\n";
-    send(clientFd, response.c_str(), response.size(), 0);
+                       "Content-Type: " + ContentType + "\r\n"
+                       "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n"
+                       "Content-Length: " + ServerUtils::numberToString(fileStat.st_size) + "\r\n\r\n";
 
+    send(clientFd, response.c_str(), response.size(), 0);
     clientStates[clientFd] = ClientState();
     clientStates[clientFd].fileFd = fileFd;
     clientStates[clientFd].offset = 0;
@@ -103,7 +104,7 @@ void serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &s
     response += setCookieHeader;
     response += "Content-Type: " + contentType + "\r\n";
     response += "Content-Length: " + ServerUtils::numberToString(content.size()) + "\r\n";
-    response += "Connection: close\r\n\r\n";
+    response += "\r\n";
     response += content;
 
     if (send(clientFd, response.c_str(), response.size(), 0) == -1) {
@@ -111,14 +112,40 @@ void serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &s
     }
 }
 
-void ServerGet::handleRawPost(int clientFd)
+void ServerGet::handleRawPost(Server& server, int clientFd, std::vector<char>& clientBuffer)
 {
-    std::cerr << "✅ Successfully processed POST request, responding with 200 OK" << std::endl;
-    std::string response = "HTTP/1.1 200 OK\r\n\r\n";
+    std::string request(clientBuffer.begin(), clientBuffer.end());
+
+    size_t bodyStart = request.find("\r\n\r\n");
+    if (bodyStart == std::string::npos)
+        return;
+
+    std::string postBody = request.substr(bodyStart + 4);  
+    if (postBody.empty())
+    {
+        ServerErrors::handleErrors(server, clientFd, 400);
+        return ;
+    }       
+    std::ofstream file("outfile.txt", std::ios::app);
+    if (file.is_open())
+    {
+        file << postBody << "\n";
+        file.close();
+    } 
+    else
+    {
+        ServerErrors::handleErrors(server, clientFd, 400);
+        return;
+    }
+    std::string response =
+        "HTTP/1.1 200 OK\r\n"
+        "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n"
+        "Content-Length: 0\r\n"
+        "Connection: keep-alive\r\n"
+        "\r\n";
     send(clientFd, response.c_str(), response.size(), 0);
-    shutdown(clientFd, SHUT_WR);
-    close(clientFd);
 }
+
 
 void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser &parser, const std::string &contentType, std::string &filePath)
 {
@@ -148,6 +175,7 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
         ServerErrors::handleErrors(server, clientFd, 405);
         return;
     }
+    std::cout << "url " <<url << std::endl;
     if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath, url))
         return;
     size_t fileSize = ServerUtils::getFileSize(filePath);

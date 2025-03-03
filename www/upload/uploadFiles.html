@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload File</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        #progress-container { width: 100%; max-width: 400px; margin: 20px auto; display: none; }
+        #progress-bar { width: 0%; height: 20px; background: green; transition: width 0.2s; }
+        #progress-text { margin-top: 5px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>Upload a File</h1>
+    <input type="file" id="fileInput">
+    <button onclick="uploadFile()">Upload</button>
+
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+        <div id="progress-text">0%</div>
+    </div>
+
+    <script>
+        function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            if (!fileInput.files.length) {
+                alert("Please select a file to upload.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", "/upload", true);
+
+
+            document.getElementById("progress-container").style.display = "block";
+
+     
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    let percentComplete = Math.round((event.loaded / event.total) * 100);
+                    document.getElementById("progress-bar").style.width = percentComplete + "%";
+                    document.getElementById("progress-text").textContent = percentComplete + "%";
+                }
+            };
+
+      
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    alert("File uploaded successfully!");
+                } else {
+                    alert("Upload failed. Server responded with " + xhr.status);
+                }
+                document.getElementById("progress-container").style.display = "none";
+                document.getElementById("progress-bar").style.width = "0%";
+                document.getElementById("progress-text").textContent = "0%";
+            };
+
+     
+            xhr.onerror = function() {
+                alert("Upload failed due to a network error.");
+            };
+
+            xhr.send(formData);
+        }
+    </script>
+</body>
+</html>
+
