@@ -11,12 +11,11 @@ Server::Server(const ServerConfig& config): _serverFd(-1), _running(false), _roo
     _errorPages        = config.getErrorPages();
     _locations         = config.getLocations();
 
-    const std::vector<uint16_t>& ports = config.getPorts();
-    if (ports.empty())
+    _ports = config.getPort();
+    if (_ports.empty())
         throw ServerException("No ports specified in configuration.");
-    ServerInit::handleMultiPorts(*this, ports);
+    ServerInit::handleMultiPorts(*this);
     _serverFd = _listeningSockets[0];
-    _port = ports[0];
     try
     {
         initEpoll();
@@ -46,7 +45,7 @@ Server& Server::operator=(const Server& obj)
         _serverFd = obj._serverFd;
         _address = obj._address;
         _ip = obj._ip;
-        _port = obj._port;
+        _ports = obj._ports;
         _epollFd = obj._epollFd;
         _running = obj._running;
         _requestStartTime = obj._requestStartTime;
@@ -131,7 +130,6 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             ServerErrors::handleErrors(*this, clientFd, 400);
             return;
         }
-        parser.setPath(ResolvePaths::normalizePath(filePath));
         filePath = parser.getPath();
         std::string setCookieHeader = ServerInit::handleCookies(*this, parser, clientFd);
         std::string externalRedirect = ServerInit::handleRedirections(*this, parser);
@@ -144,11 +142,14 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
             send(clientFd, response.c_str(), response.size(), 0);
             return;
         }
+        parser.setPath(ResolvePaths::normalizePath(filePath));
+        filePath = parser.getPath();
         std::pair<std::string, std::string> fileInfo = parser.getContentType(filePath);
         std::string contentType = fileInfo.first;
         std::string fileCategory = fileInfo.second;
         if (ServerCGI::hasCGIPassInLoc(*this, parser.getPath()))
             fileCategory = "script";
+
         if (parser.getMethod() == DELETE)
         {
             ServerDelete::handleDeleteRequest(*this, clientFd, parser);
@@ -174,8 +175,6 @@ void Server::answerClientEvent(int clientFd, std::vector<char>& clientBuffer)
         response += "Set-Cookie: session_id=" + _clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
         response += "Content-Length: 0\r\n\r\n";
         send(clientFd, response.c_str(), response.size(), 0);
-        // shutdown(clientFd, SHUT_WR);
-        // close(clientFd);
     }
 }
 
@@ -247,16 +246,18 @@ void Server::run()
         {
             int eventFd = events[i].data.fd;
             uint32_t eventType = events[i].events;
-            // bool isListening = false;
-            // for (size_t j = 0; j < _listeningSockets.size(); ++j)
-            // {
-            //     if (eventFd == _listeningSockets[j])
-            //     {
-            //         isListening = true;
-            //         break;
-            //     }
-            // }
-            if (eventFd == _serverFd)
+
+            bool isListeningSocket = false;
+            for (size_t j = 0; j < _listeningSockets.size(); ++j)
+            {
+                if (eventFd == _listeningSockets[j])
+                {
+                    isListeningSocket = true;
+                    break;
+                }
+            }
+            
+            if (isListeningSocket)
             {
                 sockaddr_in clientAddress;
                 try
@@ -310,7 +311,7 @@ void Server::print() const
 {
     std::cout << "=== Server Configuration ===" << std::endl;
     std::cout << "Server Name: " << (_serverName.empty() ? "Not set (default: localhost)" : _serverName) << std::endl;
-    std::cout << "Port: " << _port << std::endl;
+  //  std::cout << "Port: " << _port << std::endl;
     std::cout << "Root Directory: " << (_root.empty() ? "Not set (default: ./)" : _root) << std::endl;
 
     if (_clientMaxBodySize != 0)

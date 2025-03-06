@@ -10,7 +10,7 @@ class ServerConfig : public Config
 {   
     private:
 	    std::vector<uint16_t> _ports;
-        uint16_t _port;
+        //uint16_t _port;
         std::string _serverName;
         std::string _root;
         size_t _clientMaxBodySize;
@@ -30,14 +30,14 @@ class ServerConfig : public Config
         void validateSingleValue(const std::string& key, const std::string& value);
         
 	
-	const std::vector<uint16_t>& getPorts(void) const;
-	
-	
-	void parseServerKeyValue(const std::string& key, const std::string& value);
-	void validate() const;
+        //const std::vector<uint16_t>& getPorts(void) const;
+        
+        
+        void parseServerKeyValue(const std::string& key, const std::string& value);
+        void validate() const;
 
-        void setPort(uint16_t port);
-        uint16_t getPort() const;
+        void setPort(std::vector<uint16_t> port);
+        const std::vector<uint16_t> getPort() const;
 
         void setServerName(const std::string& name);
         const std::string& getServerName() const;

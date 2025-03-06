@@ -1,6 +1,6 @@
 #include "ServerConfig.hpp"
 
-ServerConfig::ServerConfig(): _port(8080), _serverName("localhost"), _root("./"), _clientMaxBodySize(1048576), _index("index.html"), _autoindex(false) , _upload("www/upload") {}
+ServerConfig::ServerConfig(): _ports(), _serverName("localhost"), _root("./"), _clientMaxBodySize(1048576), _index("index.html"), _autoindex(false) , _upload("www/upload") {}
 ServerConfig::~ServerConfig(){}
 ServerConfig::ServerConfig(const ServerConfig& obj): Config(obj)
 {
@@ -10,7 +10,7 @@ ServerConfig& ServerConfig::operator=(const ServerConfig& obj)
 {
     if (this != &obj)
     {
-        _port = obj._port;
+        _ports = obj._ports;
         _serverName = obj._serverName;
         _root = obj._root;
         _upload = obj._upload;
@@ -23,7 +23,7 @@ ServerConfig& ServerConfig::operator=(const ServerConfig& obj)
     return *this;
 }
 
-uint16_t ServerConfig::getPort() const { return _port; }
+const std::vector<uint16_t> ServerConfig::getPort() const { return _ports; }
 const std::string& ServerConfig::getServerName() const { return _serverName; }
 const std::string& ServerConfig::getRoot() const { return _root; }
 const std::string& ServerConfig::getUpload() const { return _upload; }
@@ -33,7 +33,7 @@ bool ServerConfig::isAutoindexEnabled() const { return _autoindex; }
 const std::map<int, std::string>& ServerConfig::getErrorPages() const { return _errorPages; }
 const std::vector<LocationConfig>& ServerConfig::getLocations() const { return _locations; }
 
-void ServerConfig::setPort(uint16_t port) { _port = port; }
+void ServerConfig::setPort(std::vector<uint16_t> ports) { _ports = ports; }
 void ServerConfig::setServerName(const std::string& name) { _serverName = name; }
 void ServerConfig::setRoot(const std::string& root) { _root = root; }
 void ServerConfig::setUpload(const std::string& upload) { _upload = upload; }
@@ -62,10 +62,10 @@ void ServerConfig::validateSingleValue(const std::string& key, const std::string
     }
 }
 
-const std::vector<uint16_t>& ServerConfig::getPorts(void) const
-{
-	return (this->_ports);
-}
+// const std::vector<uint16_t> ServerConfig::getPort() const
+// {
+// 	return (this->_ports);
+// }
 
 void ServerConfig::parseServerKeyValue(const std::string& key, const std::string& value)
 {
@@ -81,6 +81,7 @@ void ServerConfig::parseServerKeyValue(const std::string& key, const std::string
                 throw std::runtime_error("ServerConfig: Invalid port number:" + token);
             _ports.push_back(static_cast<uint16_t>(port));
         }
+
     }
     else if (key == "server_name")
         _serverName = value;
@@ -246,7 +247,7 @@ void ServerConfig::validate() const
 void ServerConfig::print() const
 {
     std::cout << "=== ServerConfig Parsed ===" << std::endl;
-    std::cout << "Port: " << _port << std::endl;
+   // std::cout << "Port: " << _port << std::endl;
     std::cout << "Server Name: " << _serverName << std::endl;
     std::cout << "Root: " << _root << std::endl;
     std::cout << "Client Max Body Size: " << _clientMaxBodySize << std::endl;

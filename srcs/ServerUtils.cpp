@@ -235,4 +235,65 @@ std::string ServerUtils::trim(std::string &str)
     return str.substr(start, end - start + 1);
 }
 
+// Nouvelles fonctions pour la gestion des en-têtes HTTP
 
+std::string ServerUtils::buildStandardHeaders()
+{
+    std::string headers = "";
+    headers += "Server: WebServer/1.0\r\n";
+    headers += "Date: " + getCurrentDate() + "\r\n";
+    return headers;
+}
+
+std::string ServerUtils::getCurrentDate()
+{
+    time_t now = time(0);
+    struct tm* tm_info = gmtime(&now);
+    char dateStr[100];
+    strftime(dateStr, sizeof(dateStr), "%a, %d %b %Y %H:%M:%S GMT", tm_info);
+    return std::string(dateStr);
+}
+
+std::string ServerUtils::getMimeType(const std::string& filePath)
+{
+    size_t dotPos = filePath.find_last_of(".");
+    if (dotPos == std::string::npos)
+        return "application/octet-stream";
+    
+    std::string extension = filePath.substr(dotPos + 1);
+    
+    // Convertir en minuscules
+    std::string lowerExt = extension;
+    for (size_t i = 0; i < lowerExt.size(); ++i) {
+        lowerExt[i] = tolower(lowerExt[i]);
+    }
+    
+    static std::map<std::string, std::string> mimeTypes;
+    if (mimeTypes.empty()) {
+        // HTML, CSS, JavaScript
+        mimeTypes["html"] = "text/html";
+        mimeTypes["htm"] = "text/html";
+        mimeTypes["css"] = "text/css";
+        mimeTypes["js"] = "application/javascript";
+        
+        // Images
+        mimeTypes["jpg"] = "image/jpeg";
+        mimeTypes["jpeg"] = "image/jpeg";
+        mimeTypes["png"] = "image/png";
+        mimeTypes["gif"] = "image/gif";
+        mimeTypes["ico"] = "image/x-icon";
+        
+        // Autres types courants
+        mimeTypes["pdf"] = "application/pdf";
+        mimeTypes["zip"] = "application/zip";
+        mimeTypes["json"] = "application/json";
+        mimeTypes["xml"] = "application/xml";
+        mimeTypes["txt"] = "text/plain";
+    }
+    
+    std::map<std::string, std::string>::const_iterator it = mimeTypes.find(lowerExt);
+    if (it != mimeTypes.end())
+        return it->second;
+    
+    return "application/octet-stream";
+}

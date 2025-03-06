@@ -19,6 +19,8 @@
             justify-content: center;
             flex-wrap: wrap;
             gap: 15px;
+            position: relative;
+            z-index: 10;
         }
 
         nav a {
@@ -47,6 +49,8 @@
             font-weight: bold;
             cursor: pointer;
             transition: background 0.3s ease, transform 0.2s ease;
+            position: relative;
+            z-index: 10;
         }
 
         .logout-btn:hover {
@@ -67,13 +71,63 @@
         .container {
             text-align: center;
             margin-top: 60px;
-            z-index: 1;
+            z-index: 5;
             position: relative;
         }
 
         h1 {
             font-size: 2.5rem;
             text-shadow: 0 0 20px #00d4ff, 0 0 40px #00d4ff;
+            position: relative;
+            z-index: 10;
+        }
+        
+        /* Styles pour les œuvres d'art */
+        .art-gallery {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: -2;
+        }
+        
+        .art-piece {
+            position: absolute;
+            opacity: 0.4;
+            transition: all 0.8s ease;
+        }
+        
+        .art-piece.emergence {
+            width: 120%;
+            height: 120%;
+            top: -10%;
+            left: -10%;
+            transform: scale(1.2);
+            opacity: 0.3;
+            animation: floatEmergence 120s infinite linear;
+        }
+        
+        .art-piece.monument {
+            width: 100%;
+            height: 100%;
+            opacity: 0.6;
+            animation: pulseMonument 15s infinite ease-in-out;
+        }
+        
+        @keyframes floatEmergence {
+            0% { transform: translate(-5%, -5%) rotate(0deg) scale(1.2); }
+            50% { transform: translate(5%, 5%) rotate(180deg) scale(1.3); }
+            100% { transform: translate(-5%, -5%) rotate(360deg) scale(1.2); }
+        }
+        
+        @keyframes pulseMonument {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
         }
     </style>
 </head>
@@ -92,6 +146,212 @@
         </nav>
 
         <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- Galerie d'art SVG -->
+    <div class="art-gallery">
+        <!-- Émergence 342 -->
+        <div class="art-piece emergence">
+            <svg width="100%" height="100%" viewBox="0 0 2000 2000" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                <defs>
+                    <filter id="emergence-noise">
+                      <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="5" seed="123" result="turbulence"/>
+                      <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="50" xChannelSelector="R" yChannelSelector="G"/>
+                    </filter>
+                    <filter id="secondary-emergence">
+                      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="2" result="noise"/>
+                      <feColorMatrix in="noise" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 5 -2" result="boosted"/>
+                      <feComposite in="SourceGraphic" in2="boosted" operator="arithmetic" k1="0" k2="0.5" k3="0.5" k4="0"/>
+                    </filter>
+                    <filter id="cellular-transform">
+                      <feTurbulence type="turbulence" baseFrequency="0.05" seed="5" numOctaves="5" result="turbulence"/>
+                      <feColorMatrix in="turbulence" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -5 3" result="matrix"/>
+                      <feDisplacementMap in="SourceGraphic" in2="matrix" scale="20" xChannelSelector="R" yChannelSelector="G" result="displaced"/>
+                      <feGaussianBlur in="displaced" stdDeviation="1" result="blurred"/>
+                      <feBlend in="SourceGraphic" in2="blurred" mode="multiply"/>
+                    </filter>
+                </defs>
+                
+                <!-- Structure de base -->
+                <rect width="2000" height="2000" fill="#121020" opacity="0.8"/>
+                
+                <!-- Cercles concentriques avec animation -->
+                <g transform="translate(1000, 1000)" opacity="0.3">
+                    <circle r="800" fill="none" stroke="#00d4ff" stroke-width="2" stroke-opacity="0.3">
+                        <animate attributeName="r" values="800;820;800" dur="30s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle r="600" fill="none" stroke="#00d4ff" stroke-width="1.5" stroke-opacity="0.4">
+                        <animate attributeName="r" values="600;620;600" dur="25s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle r="400" fill="none" stroke="#00d4ff" stroke-width="1" stroke-opacity="0.5">
+                        <animate attributeName="r" values="400;410;400" dur="20s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle r="200" fill="none" stroke="#00d4ff" stroke-width="0.5" stroke-opacity="0.6">
+                        <animate attributeName="r" values="200;210;200" dur="15s" repeatCount="indefinite"/>
+                    </circle>
+                </g>
+                
+                <!-- Rayons lumineux -->
+                <g transform="translate(1000, 1000)" opacity="0.2">
+                    <line x1="0" y1="-900" x2="0" y2="900" stroke="#00d4ff" stroke-width="1">
+                        <animate attributeName="stroke-opacity" values="0.2;0.5;0.2" dur="10s" repeatCount="indefinite"/>
+                    </line>
+                    <line x1="-900" y1="0" x2="900" y2="0" stroke="#00d4ff" stroke-width="1">
+                        <animate attributeName="stroke-opacity" values="0.2;0.5;0.2" dur="13s" repeatCount="indefinite"/>
+                    </line>
+                    <line x1="-636" y1="-636" x2="636" y2="636" stroke="#00d4ff" stroke-width="1">
+                        <animate attributeName="stroke-opacity" values="0.2;0.5;0.2" dur="11s" repeatCount="indefinite"/>
+                    </line>
+                    <line x1="636" y1="-636" x2="-636" y2="636" stroke="#00d4ff" stroke-width="1">
+                        <animate attributeName="stroke-opacity" values="0.2;0.5;0.2" dur="12s" repeatCount="indefinite"/>
+                    </line>
+                </g>
+                
+                <!-- Motifs géométriques complexes -->
+                <g filter="url(#cellular-transform)" opacity="0.15">
+                    <rect x="200" y="200" width="1600" height="1600" fill="none" stroke="#00d4ff" stroke-width="3"/>
+                    <circle cx="1000" cy="1000" r="800" fill="none" stroke="#00d4ff" stroke-width="3"/>
+                </g>
+                
+                <!-- Lueurs centrales -->
+                <g filter="url(#emergence-noise)" transform="translate(1000, 1000)" opacity="0.5">
+                    <circle r="150" fill="#00d4ff" opacity="0.2">
+                        <animate attributeName="r" values="150;200;150" dur="20s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="0.2;0.3;0.2" dur="20s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle r="100" fill="#00d4ff" opacity="0.3">
+                        <animate attributeName="r" values="100;120;100" dur="15s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="0.3;0.4;0.3" dur="15s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle r="50" fill="#ffffff" opacity="0.4">
+                        <animate attributeName="r" values="50;70;50" dur="10s" repeatCount="indefinite"/>
+                        <animate attributeName="opacity" values="0.4;0.6;0.4" dur="10s" repeatCount="indefinite"/>
+                    </circle>
+                </g>
+            </svg>
+        </div>
+        
+        <!-- Monument Cosmique -->
+        <div class="art-piece monument">
+            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1200 900" width="100%" height="100%">
+                <defs>
+                    <filter id="noise" x="0%" y="0%" width="100%" height="100%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" result="noise" seed="3">
+                            <animate attributeName="seed" from="0" to="100" dur="60s" repeatCount="indefinite"/>
+                        </feTurbulence>
+                        <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" xChannelSelector="R" yChannelSelector="G"/>
+                    </filter>
+                    
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="10" result="blur"/>
+                        <feFlood flood-color="#ff4da6" flood-opacity="0.7" result="color"/>
+                        <feComposite in="color" in2="blur" operator="in" result="glow"/>
+                        <feComposite in="SourceGraphic" in2="glow" operator="over"/>
+                    </filter>
+                    
+                    <radialGradient id="nebula-glow" cx="50%" cy="50%" r="70%" fx="50%" fy="50%">
+                        <stop offset="0%" stop-color="#ff006c" stop-opacity="0.7">
+                            <animate attributeName="stop-color" values="#ff006c;#8000ff;#0066ff;#00ffcc;#ff006c" dur="30s" repeatCount="indefinite"/>
+                        </stop>
+                        <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+                    </radialGradient>
+                    
+                    <linearGradient id="portal-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#ff00aa">
+                            <animate attributeName="stop-color" values="#ff00aa;#aa00ff;#00aaff;#ff00aa" dur="20s" repeatCount="indefinite"/>
+                        </stop>
+                        <stop offset="100%" stop-color="#00c3ff">
+                            <animate attributeName="stop-color" values="#00c3ff;#5500ff;#ff0055;#00c3ff" dur="20s" repeatCount="indefinite"/>
+                        </stop>
+                    </linearGradient>
+                    
+                    <linearGradient id="crystal-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"/>
+                        <stop offset="40%" stop-color="#daeeff" stop-opacity="0.8"/>
+                        <stop offset="60%" stop-color="#b3ddff" stop-opacity="0.9"/>
+                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0.7"/>
+                    </linearGradient>
+                    
+                    <pattern id="starfield" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+                        <rect width="200" height="200" fill="none"/>
+                        <g fill="#ffffff">
+                            <circle cx="10" cy="10" r="0.8"/>
+                            <circle cx="30" cy="25" r="0.5"/>
+                            <circle cx="55" cy="15" r="1.2"/>
+                            <circle cx="70" cy="40" r="0.7"/>
+                            <circle cx="90" cy="10" r="0.9"/>
+                            <circle cx="110" cy="30" r="0.6"/>
+                            <circle cx="140" cy="25" r="1.1"/>
+                            <circle cx="160" cy="45" r="0.4"/>
+                            <circle cx="180" cy="20" r="0.8"/>
+                            <circle cx="15" cy="65" r="0.7"/>
+                            <circle cx="35" cy="80" r="1.0"/>
+                            <circle cx="50" cy="100" r="0.5"/>
+                            <circle cx="75" cy="70" r="0.8"/>
+                            <circle cx="95" cy="95" r="1.2"/>
+                            <circle cx="120" cy="80" r="0.6"/>
+                            <circle cx="145" cy="75" r="0.9"/>
+                            <circle cx="165" cy="95" r="0.7"/>
+                            <circle cx="190" cy="85" r="1.0"/>
+                        </g>
+                    </pattern>
+                </defs>
+                
+                <!-- Fond cosmique -->
+                <rect width="1200" height="900" fill="#0a0018" opacity="0.7"/>
+                
+                <!-- Champ d'étoiles -->
+                <rect width="1200" height="900" fill="url(#starfield)" opacity="0.6">
+                    <animate attributeName="opacity" values="0.6;0.8;0.6" dur="10s" repeatCount="indefinite"/>
+                </rect>
+                
+                <!-- Nébuleuse -->
+                <ellipse cx="600" cy="450" rx="500" ry="300" fill="url(#nebula-glow)" opacity="0.3" filter="url(#noise)">
+                    <animate attributeName="opacity" values="0.3;0.4;0.3" dur="20s" repeatCount="indefinite"/>
+                </ellipse>
+                
+                <!-- Portail cosmique -->
+                <g filter="url(#glow)" opacity="0.7">
+                    <ellipse cx="600" cy="450" rx="140" ry="140" fill="none" stroke="url(#portal-gradient)" stroke-width="10">
+                        <animate attributeName="rx" values="140;150;140" dur="8s" repeatCount="indefinite"/>
+                        <animate attributeName="ry" values="140;135;140" dur="9s" repeatCount="indefinite"/>
+                    </ellipse>
+                    
+                    <ellipse cx="600" cy="450" rx="100" ry="100" fill="none" stroke="url(#portal-gradient)" stroke-width="5" stroke-dasharray="15,10">
+                        <animate attributeName="rx" values="100;110;100" dur="12s" repeatCount="indefinite"/>
+                        <animate attributeName="ry" values="100;95;100" dur="10s" repeatCount="indefinite"/>
+                    </ellipse>
+                    
+                    <ellipse cx="600" cy="450" rx="60" ry="60" fill="none" stroke="url(#portal-gradient)" stroke-width="3">
+                        <animate attributeName="rx" values="60;65;60" dur="5s" repeatCount="indefinite"/>
+                        <animate attributeName="ry" values="60;58;60" dur="6s" repeatCount="indefinite"/>
+                    </ellipse>
+                </g>
+                
+                <!-- Orbes orbitant -->
+                <g opacity="0.7">
+                    <circle cx="0" cy="0" r="12" fill="#ffcc00">
+                        <animateMotion path="M600,450 m-200,0 a200,200 0 1,0 400,0 a200,200 0 1,0 -400,0" dur="20s" repeatCount="indefinite"/>
+                    </circle>
+                    
+                    <circle cx="0" cy="0" r="8" fill="#00ffcc">
+                        <animateMotion path="M600,450 m-250,0 a250,250 0 1,1 500,0 a250,250 0 1,1 -500,0" dur="25s" repeatCount="indefinite"/>
+                    </circle>
+                    
+                    <circle cx="0" cy="0" r="15" fill="#ff00ff">
+                        <animateMotion path="M600,450 m-300,0 a300,300 0 1,0 600,0 a300,300 0 1,0 -600,0" dur="30s" repeatCount="indefinite"/>
+                    </circle>
+                </g>
+                
+                <!-- Éclats de lumière -->
+                <g>
+                    <circle cx="600" cy="450" r="0" fill="#ffffff">
+                        <animate attributeName="r" values="0;200;0" dur="10s" repeatCount="indefinite" begin="0s"/>
+                        <animate attributeName="opacity" values="0.5;0;0.5" dur="10s" repeatCount="indefinite" begin="0s"/>
+                    </circle>
+                </g>
+            </svg>
+        </div>
     </div>
 
     <!-- SVG dynamique décoratif futuriste -->

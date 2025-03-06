@@ -22,6 +22,7 @@ bool ServerFolders::handleFoldersRequests(Server &server, int clientFd, std::str
                 return true;
             }        
             std::string response = "HTTP/1.1 200 OK\r\n";
+            response += ServerUtils::buildStandardHeaders();
             response += "Content-Type: text/html\r\n";
             response += "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
             response += "Content-Length: " + ServerUtils::numberToString(content.size()) + "\r\n";
@@ -49,6 +50,7 @@ void ServerFolders::handleAutoIndex(Server &server, int clientFd, bool autoindex
     {
         std::string directoryListing = generateAutoindexPage(path);
         std::string response = "HTTP/1.1 200 OK\r\n";
+        response += ServerUtils::buildStandardHeaders();
         response += "Content-Type: text/html\r\n";
         response += "Content-Length: " + ServerUtils::numberToString(directoryListing.size()) + "\r\n";
         response += "\r\n";
@@ -57,7 +59,7 @@ void ServerFolders::handleAutoIndex(Server &server, int clientFd, bool autoindex
     }
     else
         ServerErrors::handleErrors(server, clientFd, 403);
-    return ;
+    return;
 }
 
 std::string ServerFolders::generateAutoindexPage(const std::string& directoryPath)

@@ -82,9 +82,11 @@ void ServerCGI::handleCGIParentProcess(Server &server, int clientFd, int pipefd[
 	std::stringstream response;
 	response << is.rdbuf();
 	waitpid(pid, NULL, 0); 
-	  close(pipefd[0]);
+	close(pipefd[0]);
 	std::string cgiOutput = response.str();
 	std::string httpResponse = "HTTP/1.1 200 OK\r\n";
+	httpResponse += ServerUtils::buildStandardHeaders();
+	
 	size_t pos = cgiOutput.find("Content-Type:");
     if (pos != std::string::npos)
     {
@@ -135,13 +137,12 @@ void ServerCGI::executeCGI(Server &server, int clientFd, std::string &filePath, 
     if (access(filePath.c_str(), F_OK) != 0)
     {
         std::cerr << "❌ Error: CGI script not found: " << filePath << std::endl;
-        std::string response = "HTTP/1.1 404 Not Found\r\n"
-                            "Content-Type: text/html\r\n"
-                            "Content-Length: 74\r\n\r\n"
-                            "<html><body><h1>404 Not Found</h1><p>CGI script not found.</p></body></html>";
+        std::string response = "HTTP/1.1 404 Not Found\r\n";
+        response += ServerUtils::buildStandardHeaders();
+        response += "Content-Type: text/html\r\n";
+        response += "Content-Length: 74\r\n\r\n";
+        response += "<html><body><h1>404 Not Found</h1><p>CGI script not found.</p></body></html>";
         send(clientFd, response.c_str(), response.size(), 0);
-        // shutdown(clientFd, SHUT_WR);
-        // close(clientFd);
         return;
     }
     

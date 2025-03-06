@@ -26,6 +26,11 @@ class ServerUtils
         static size_t stringToSizeT(const std::string& str);
         static std::string generateSessionId(void);
         static std::string trim(std::string &str);
+        
+        // Nouvelles fonctions pour la gestion des en-têtes HTTP
+        static std::string buildStandardHeaders();
+        static std::string getCurrentDate();
+        static std::string getMimeType(const std::string& filePath);
 };
 
 #endif

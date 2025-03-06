@@ -17,10 +17,10 @@ std::string ServerInit::handleCookies(Server &server, HttpRequestParser &parser,
     return (setCookieHeader);
 }
 
-void ServerInit::handleMultiPorts(Server&server, const std::vector<uint16_t>& ports)
+void ServerInit::handleMultiPorts(Server&server)
 {
     int opt_val = 1;
-    for (size_t i = 0; i < ports.size(); ++i)
+    for (size_t i = 0; i < server._ports.size(); ++i)
     {
         int sockfd = socket(AF_INET, SOCK_STREAM, 0);
         setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &opt_val, sizeof(opt_val));
@@ -35,20 +35,20 @@ void ServerInit::handleMultiPorts(Server&server, const std::vector<uint16_t>& po
         sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET;
-        addr.sin_port = htons(ports[i]);
+        addr.sin_port = htons(server._ports[i]);
         addr.sin_addr.s_addr = INADDR_ANY;
         if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
             close(sockfd);
         	std::stringstream ss;
-            ss << ports[i];
+            ss << server._ports[i];
             throw ServerException("Failed to bind socket on port " + ss.str() + ": " + std::string(strerror(errno)));
         }
         if (listen(sockfd, SOMAXCONN) < 0)
         {
             close(sockfd);
         	std::stringstream ss;
-            ss << ports[i];
+            ss << server._ports[i];
             throw ServerException("Failed to listen on port " + ss.str() + ": " + std::string(strerror(errno)));
         }
         server._listeningSockets.push_back(sockfd);
@@ -72,7 +72,19 @@ std::string extractPathFromURL(const std::string &url)
 std::string ServerInit::handleRedirections(Server &server, HttpRequestParser &parser)
 {
     std::string externalRedirect;
-
+    std::string path = parser.getPath();
+    if (!path.empty() && path[path.size() - 1] == '/' && path[path.size() - 2] == '/')
+        return (ResolvePaths::normalizePath(path) + '/');
+    if (parser.getMethod() == GET && !path.empty() && path[path.size() - 1] != '/' && path.find_last_of('/') != std::string::npos)
+    {
+        std::size_t lastSlashPos = path.find_last_of('/');
+        std::string lastSegment = path.substr(lastSlashPos + 1);
+        if (lastSegment.find('.') == std::string::npos && ResolvePaths::isLocation(server, path))
+        {
+            externalRedirect = path + "/";
+            return externalRedirect;
+        }
+    }
     for (std::vector<LocationConfig>::const_iterator it = server._locations.begin(); it != server._locations.end(); ++it)
     {
         if (ResolvePaths::normalizePath(parser.getPath()) == ResolvePaths::normalizePath(it->getPath()) && !it->getRedirect().empty())

@@ -115,12 +115,11 @@ void ServerPost::handleFileUpload(Server &server, int clientFd, const std::vecto
         std::cerr << "⚠️ File already exists: " << filePath << std::endl;
         std::string body = "<html><body><h1>File Already Exists</h1><p>File: " + data.filename + " already uploaded.</p></body></html>";
         std::string response = "HTTP/1.1 200 OK\r\n";
+        response += ServerUtils::buildStandardHeaders();
         response += "Content-Type: text/html\r\n";
         response += "Content-Length: " + ServerUtils::numberToString(body.size()) + "\r\n\r\n";
         response += body;
         send(clientFd, response.c_str(), response.size(), 0);
-        // shutdown(clientFd, SHUT_WR);
-        // close(clientFd);
         return;
     }
     file.close();
@@ -130,6 +129,7 @@ void ServerPost::handleFileUpload(Server &server, int clientFd, const std::vecto
         handleSmallFileUpload(server, clientFd, data, filePath);      
     std::string body = "<html><body><h1>Upload Successful</h1><p>File uploaded: " + data.filename + "</p></body></html>";
     std::string response = "HTTP/1.1 200 OK\r\n";
+    response += ServerUtils::buildStandardHeaders();
     response += "Content-Type: text/html\r\n";
     response += "Content-Length: " + ServerUtils::numberToString(body.size()) + "\r\n\r\n";
     response += body;
@@ -169,12 +169,14 @@ bool extractFormData(const std::vector<char>& clientBuffer, std::string& formDat
 
 bool ServerPost::getFormFilePath(Server &server, const std::string& formFileName, std::string& formFilePath)
 {
+    std::cout << formFileName<<std::endl;
     if (formFileName.empty())
     {
         std::cerr << "❌ formFileName is empty" << std::endl;
         return false;
     }
     std::string formRoot = getRootFromForm(server);
+    std::cout << formRoot<<std::endl;
     if (formRoot.empty())
     {
         std::cerr << "❌ No valid form root directory found for /form" << std::endl;
@@ -305,12 +307,11 @@ void ServerPost::handleFormLogin(Server &server, int clientFd, std::vector<char>
     }
     std::string username = formFields["username"];
     std::string response = "HTTP/1.1 302 Found\r\n";
+    response += ServerUtils::buildStandardHeaders();
     response += "Set-Cookie: session_id=" + storedSessionId + "; Path=/\r\n";
     response += "Location: /welcome.html?user=" + username + "\r\n";
     response += "Content-Length: 0\r\n\r\n";
     send(clientFd, response.c_str(), response.size(), 0);
-    // shutdown(clientFd, SHUT_WR);
-    // close(clientFd);
 }
 
 void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<char>& clientBuffer, const std::string &sessionId, const std::string &path)
@@ -327,14 +328,13 @@ void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<
             if (!existingSessionId.empty())
             {
                 std::cerr << "❌ Error: User already registered!" << std::endl;
-                std::string response = "HTTP/1.1 302 Conflict\r\n"
-                                    "Location: /login.html\r\n"
-                                    "Content-Type: text/html\r\n"
-                                    "Content-Length: 67\r\n\r\n"
-                                    "<html><body>User already has an account!</body></html>";
+                std::string response = "HTTP/1.1 302 Conflict\r\n";
+                response += ServerUtils::buildStandardHeaders();
+                response += "Location: /login.html\r\n";
+                response += "Content-Type: text/html\r\n";
+                response += "Content-Length: 67\r\n\r\n";
+                response += "<html><body>User already has an account!</body></html>";
                 send(clientFd, response.c_str(), response.size(), 0);
-                // shutdown(clientFd, SHUT_WR);
-                // close(clientFd);
                 return;
             }
         }
@@ -345,6 +345,7 @@ void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<
         }
     }
     std::string response = "HTTP/1.1 200 OK\r\n";
+    response += ServerUtils::buildStandardHeaders();
     response += "Set-Cookie: session_id=" + sessionId + "; Path=/; HttpOnly\r\n";
     response += "Content-Type: text/html\r\n";
     if (formFilePath == "login.csv") 
@@ -360,8 +361,6 @@ void ServerPost::handleFormSubmission(Server &server, int clientFd, std::vector<
         response += body;
     }    
     send(clientFd, response.c_str(), response.size(), 0);
-    // shutdown(clientFd, SHUT_WR);
-    // close(clientFd);
 }
     
 std::string findUsernameBySessionId(const std::string &filePath, const std::string &sessionId)
@@ -435,14 +434,13 @@ bool ServerPost::checkClientSession(Server &server, int clientFd, std::vector<ch
         return false;
     }
     std::string response = "HTTP/1.1 200 OK\r\n";
+    response += ServerUtils::buildStandardHeaders();
     response += "Set-Cookie: session_id=" + sessionId + "; Path=/\r\n";
     response += "Content-Type: text/plain\r\n";
     response += "Content-Length: " + ServerUtils::numberToString(username.size()) + "\r\n";
     response += "\r\n";
     response += username;
     send(clientFd, response.c_str(), response.size(), 0);
-    // shutdown(clientFd, SHUT_WR);
-    // close(clientFd);
     return true;
 }
 
@@ -455,7 +453,8 @@ void ServerPost::handlePostRequest(Server &server, int clientFd, HttpRequestPars
     if (ResolvePaths::isLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "POST", url))
     {
         std::cerr << "❌ Error: POST not allowed for this location." << std::endl;
-        ServerErrors::handleErrors(server, clientFd, 405);
+        std::vector<std::string> allowedMethods = ResolvePaths::getAllowedMethods(server, url);
+        ServerErrors::handleErrors(server, clientFd, 405, allowedMethods);
         return;
     }
     std::map<std::string, std::string> headers = parser.getHeaders();

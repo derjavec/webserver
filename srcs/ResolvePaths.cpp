@@ -1,6 +1,6 @@
 #include "ResolvePaths.hpp"
 
-const LocationConfig* ResolvePaths::findBestLocation(Server &server, std::string &path, size_t &bestMatchLength)
+const LocationConfig* ResolvePaths::findBestLocation(Server &server, std::string path, size_t &bestMatchLength)
 {
     const LocationConfig* bestMatch = NULL;
     path = doubleNormalizePath(normalizePath(path));
@@ -23,45 +23,40 @@ const LocationConfig* ResolvePaths::findBestLocation(Server &server, std::string
     return bestMatch;
 }
 
-std::string ResolvePaths::computeResolvedPath(const Server &server, const LocationConfig *bestLocation, const std::string &reqPath, std::string &relativePath)
-{
-    std::string resolvedPath;
-    relativePath = normalizePath(relativePath);
-    if (bestLocation->getAlias().empty() && bestLocation->getRoot().empty())
-        resolvedPath = server._root + reqPath;
-    else if (!bestLocation->getAlias().empty())
-    {
-        std::string alias = normalizePath(bestLocation->getAlias());
-        resolvedPath = alias + "/" + relativePath;
-    }
-    else
-    {
-        std::string root = normalizePath(bestLocation->getRoot());
-        std::string locationPath = normalizePath(bestLocation->getPath());
-        resolvedPath = buildFullLocationPath(relativePath, root, locationPath);
-    }
-    return resolvedPath;
-}
-
 std::string ResolvePaths::resolveFilePath(Server &server, HttpRequestParser parser)
 {
     size_t bestMatchLength = 0;
-    std::string reqPath = parser.getPath();
-    const LocationConfig* bestLocation = findBestLocation(server, reqPath, bestMatchLength);
+    std::string url = ResolvePaths::doubleNormalizePath(parser.getPath());
+    const LocationConfig* bestLocation = findBestLocation(server, url, bestMatchLength);
+    std::string relativePath;
+    if (bestMatchLength >= url.size())
+        relativePath = "";
+    else
+        relativePath= url.substr(bestMatchLength);
     std::string resolvedPath;
    
     if (bestLocation)
     {
-        std::string relativePath = reqPath.substr(bestMatchLength);
-        resolvedPath = computeResolvedPath(server, bestLocation, reqPath, relativePath);
+        if (bestLocation->getAlias().empty() && bestLocation->getRoot().empty())
+        resolvedPath = server._root + url;
+        else if (!bestLocation->getAlias().empty())
+        {
+            std::string alias = normalizePath(bestLocation->getAlias());
+            resolvedPath = alias + "/" + relativePath;
+        }
+        else
+        {
+            std::string root = normalizePath(bestLocation->getRoot());
+            resolvedPath = root + "/" + relativePath;
+        }
     } 
     else
     {
         std::string root = normalizePath(server._root);   
-        if (reqPath.find('.') != std::string::npos && reqPath.find(".html") != std::string::npos)
-            resolvedPath = root + "/html/" + reqPath;
+        if (url.find('.') != std::string::npos && url.find(".html") != std::string::npos)
+            resolvedPath = root + "/html/" + url;
         else
-            resolvedPath = root + reqPath;
+            resolvedPath = root + url;
     }
     return urlDecode(resolvedPath);
 }
@@ -72,37 +67,12 @@ bool ResolvePaths::findLocationConfig(Server &server, std::string &locationIndex
     const LocationConfig *bestMatch = findBestLocation(server, url, bestMatchLength);
     if (bestMatch)
     {
-
+        
         locationIndex = bestMatch->getIndex();
         autoindexEnabled = bestMatch->isAutoindexEnabled();
         return true;
     }
     return false;
-}
-
-std::string buildFullLocationPath(const std::string &path, const std::string &root, const std::string &locationPath)
-{
-    std::string fullLocationPath = root;
-    std::string pathWithOutLocPath;
-
-    if (path.find(locationPath) == 0)
-        pathWithOutLocPath = path.substr(locationPath.length());
-    else 
-        pathWithOutLocPath = path;
-    if (!pathWithOutLocPath.empty() && pathWithOutLocPath[0] != '/')
-        pathWithOutLocPath = '/' + pathWithOutLocPath;
-    std::string rootPlusPath = root + pathWithOutLocPath;
-    bool isDir = ServerUtils::isDirectory(rootPlusPath);
-    std::string rootLocFile =  root + locationPath + path;
-    if (!isDir && std::ifstream(rootPlusPath.c_str()).good())
-        fullLocationPath = rootPlusPath;
-    else if (isDir && ServerUtils::isDirectory(root + locationPath))
-        fullLocationPath = root + locationPath;
-    else if (!isDir && ServerUtils::isDirectory(root + locationPath) && std::ifstream(rootLocFile.c_str()).good())
-        fullLocationPath = root + locationPath + path;
-    else
-        fullLocationPath = rootPlusPath;
-    return fullLocationPath;
 }
 
 bool ResolvePaths::isLocation(Server &server, std::string &url)
@@ -124,6 +94,19 @@ bool ResolvePaths::isMethodAllowed(Server &server, const std::string &path, cons
         return std::find(methods.begin(), methods.end(), method) != methods.end();
     }
     return false; 
+}
+
+std::vector<std::string> ResolvePaths::getAllowedMethods(Server &server, const std::string &url)
+{
+    std::string normalizedUrl = normalizePath(url);
+    size_t bestMatchLength = 0;
+    const LocationConfig *bestMatch = findBestLocation(server, normalizedUrl, bestMatchLength);
+
+    if (bestMatch)
+        return bestMatch->getMethods();  
+    std::vector<std::string> defaultMethods;
+    defaultMethods.push_back("GET");
+    return defaultMethods;
 }
 
 std::string urlDecode(const std::string& str)

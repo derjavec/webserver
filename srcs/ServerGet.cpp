@@ -6,76 +6,104 @@ void ServerGet::handleClientWrite(Server &server, int clientFd)
 {
     if (clientStates.find(clientFd) == clientStates.end())
         return;
+
     ClientState &state = clientStates[clientFd];
     const size_t bufferSize = 8192;
     char buffer[bufferSize];
-    while (true)
+
+    memset(buffer, 0, bufferSize);
+
+    ssize_t bytesRead = pread(state.fileFd, buffer, bufferSize, state.offset);
+    if (bytesRead == 0)
     {
-        ssize_t bytesRead = pread(state.fileFd, buffer, bufferSize, state.offset);
-        if (bytesRead == 0)
+        std::cout << "Finished sending file for client " << clientFd << std::endl;
+        struct epoll_event ev;
+        ev.events = EPOLLIN;
+        ev.data.fd = clientFd;
+        epoll_ctl(server._epollFd, EPOLL_CTL_MOD, clientFd, &ev);
+        close(state.fileFd);
+        clientStates.erase(clientFd);
+        return;
+    }
+    else if (bytesRead < 0)
+    {
+        std::cerr << "Error reading file: " << strerror(errno) << std::endl;
+        close(state.fileFd);
+        clientStates.erase(clientFd);
+        return;
+    }
+    ssize_t bytesSent = send(clientFd, buffer, bytesRead, 0);
+    if (bytesSent == -1)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-            std::cout << "Finished sending file for client " << clientFd << std::endl;
+            std::cout << "Send would block, will retry later." << std::endl;
             struct epoll_event ev;
-            ev.events = EPOLLIN;
+            ev.events = EPOLLOUT | EPOLLIN;
             ev.data.fd = clientFd;
             epoll_ctl(server._epollFd, EPOLL_CTL_MOD, clientFd, &ev);
-            close(state.fileFd);
-            clientStates.erase(clientFd);
             return;
         }
-        ssize_t bytesSent = send(clientFd, buffer, bytesRead, 0);
-        if (bytesSent == -1)
-        {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                std::cout << "Send would block, will try again later." << std::endl;
-                struct epoll_event ev;
-                ev.events = EPOLLOUT | EPOLLIN;
-                ev.data.fd = clientFd;
-                epoll_ctl(server._epollFd, EPOLL_CTL_MOD, clientFd, &ev);
-                return;
-            }
-            std::cerr << "Error sending file fragment: " << strerror(errno) << std::endl;
-            close(state.fileFd);
-            clientStates.erase(clientFd);
-            return;
-        }
-        state.offset += bytesSent;
+        std::cerr << "Error sending file fragment: " << strerror(errno) << std::endl;
+        close(state.fileFd);
+        clientStates.erase(clientFd);
+        return;
+    }
+
+    state.offset += bytesSent;
+    if (bytesSent < bytesRead)
+    {
+        struct epoll_event ev;
+        ev.events = EPOLLOUT | EPOLLIN;
+        ev.data.fd = clientFd;
+        epoll_ctl(server._epollFd, EPOLL_CTL_MOD, clientFd, &ev);
     }
 }
 
-
-void ServerGet::serveLargeFileAsync(Server &server, int clientFd, const std::string& filePath, const std::string &ContentType)
+void ServerGet::serveLargeFileAsync(Server &server, int clientFd, const std::string& filePath, const std::string &contentType)
 {
+
     if (filePath.find('%') != std::string::npos) 
     {
         std::cerr << "❌ Error: Invalid URL encoding in request path: " << filePath << std::endl;
         ServerErrors::handleErrors(server, clientFd, 400);
         return;
     }
+
     int fileFd = open(filePath.c_str(), O_RDONLY);
     if (fileFd == -1)
     {
         std::cerr << "Error opening file: " << filePath << std::endl;
-        std::string response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+        std::string response = "HTTP/1.1 404 Not Found\r\n";
+        response += ServerUtils::buildStandardHeaders();
+        response += "Content-Length: 0\r\n\r\n";
         send(clientFd, response.c_str(), response.size(), 0);
         return;
     }
+
     struct stat fileStat;
     fstat(fileFd, &fileStat);
 
-    std::string response = "HTTP/1.1 200 OK\r\n"
-                       "Content-Type: " + ContentType + "\r\n"
-                       "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n"
-                       "Content-Length: " + ServerUtils::numberToString(fileStat.st_size) + "\r\n\r\n";
+    std::string effectiveContentType = contentType.empty() ? 
+                                    ServerUtils::getMimeType(filePath) : contentType;
+
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    response += ServerUtils::buildStandardHeaders();
+    response += "Content-Type: " + effectiveContentType + "\r\n";
+    response += "Content-Length: " + ServerUtils::numberToString(fileStat.st_size) + "\r\n";
+    response += "Connection: keep-alive\r\n\r\n";
 
     send(clientFd, response.c_str(), response.size(), 0);
     clientStates[clientFd] = ClientState();
     clientStates[clientFd].fileFd = fileFd;
     clientStates[clientFd].offset = 0;
     clientStates[clientFd].totalSize = fileStat.st_size;
-    handleClientWrite(server, clientFd);
+    struct epoll_event ev;
+    ev.events = EPOLLOUT | EPOLLIN;
+    ev.data.fd = clientFd;
+    epoll_ctl(server._epollFd, EPOLL_CTL_MOD, clientFd, &ev);
 }
+
 
 
 void serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &server, int clientFd, const std::string &filePath, const std::string &contentType)
@@ -87,6 +115,7 @@ void serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &s
         ServerErrors::handleErrors(server, clientFd, 404);
         return;
     }
+    
     std::stringstream buffer;
     buffer << file.rdbuf();
     std::string content = buffer.str();
@@ -99,17 +128,17 @@ void serveStaticFile(const std::map<int, SessionData> &clientSessions, Server &s
     std::string setCookieHeader;
     if (clientSessions.find(clientFd) != clientSessions.end())
         setCookieHeader = "Set-Cookie: session_id=" + clientSessions.at(clientFd).sessionId + "; Path=/; HttpOnly\r\n";
-
-    std::string response = "HTTP/1.1 200 OK\r\n";
-    response += setCookieHeader;
-    response += "Content-Type: " + contentType + "\r\n";
-    response += "Content-Length: " + ServerUtils::numberToString(content.size()) + "\r\n";
-    response += "\r\n";
-    response += content;
-
-    if (send(clientFd, response.c_str(), response.size(), 0) == -1) {
+    std::string effectiveContentType = contentType.empty() ? 
+                                    ServerUtils::getMimeType(filePath) : contentType;
+    
+    std::string headers = "HTTP/1.1 200 OK\r\n";
+    headers += ServerUtils::buildStandardHeaders();
+    headers += setCookieHeader;
+    headers += "Content-Type: " + effectiveContentType + "\r\n";
+    headers += "Content-Length: " + ServerUtils::numberToString(content.size()) + "\r\n\r\n";
+    std::string response = headers + content;
+    if (send(clientFd, response.c_str(), response.size(), 0) == -1)
         std::cerr << "Error sending file to client (fd: " << clientFd << "): " << strerror(errno) << std::endl;
-    }
 }
 
 void ServerGet::handleRawPost(Server& server, int clientFd, std::vector<char>& clientBuffer)
@@ -137,12 +166,12 @@ void ServerGet::handleRawPost(Server& server, int clientFd, std::vector<char>& c
         ServerErrors::handleErrors(server, clientFd, 400);
         return;
     }
-    std::string response =
-        "HTTP/1.1 200 OK\r\n"
-        "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n"
-        "Content-Length: 0\r\n"
-        "Connection: keep-alive\r\n"
-        "\r\n";
+    std::string response = "HTTP/1.1 200 OK\r\n";
+    response += ServerUtils::buildStandardHeaders();
+    response += "Set-Cookie: session_id=" + server._clientSessions[clientFd].sessionId + "; Path=/; HttpOnly\r\n";
+    response += "Content-Length: 0\r\n";
+    response += "Connection: keep-alive\r\n";
+    response += "\r\n";
     send(clientFd, response.c_str(), response.size(), 0);
 }
 
@@ -172,10 +201,10 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
     if (ResolvePaths::isLocation(server, url) && !ResolvePaths::isMethodAllowed(server, filePath, "GET", url))
     {
         std::cerr << "❌ Error: GET not allowed for this location." << std::endl;
-        ServerErrors::handleErrors(server, clientFd, 405);
+        std::vector<std::string> allowedMethods = ResolvePaths::getAllowedMethods(server, url);
+        ServerErrors::handleErrors(server, clientFd, 405, allowedMethods);
         return;
     }
-    std::cout << "url " <<url << std::endl;
     if (ServerUtils::isDirectory(filePath) && ServerFolders::handleFoldersRequests(server, clientFd, filePath, url))
         return;
     size_t fileSize = ServerUtils::getFileSize(filePath);
@@ -186,4 +215,3 @@ void ServerGet::handleGetRequest(Server &server, int clientFd, HttpRequestParser
     }
     serveStaticFile(server._clientSessions, server, clientFd, filePath, contentType);
 }
-

@@ -130,7 +130,7 @@ int HttpRequestParser::parseRequestLine(const std::string& line)
     {
         std::cerr << "Error: 414 Request-URI Too Long." << std::endl;
         return 414;
-    } 
+    }
     _method = stringToMethod(methodStr);
     if (path.empty() || path[0] != '/')
     {

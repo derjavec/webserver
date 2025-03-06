@@ -31,7 +31,8 @@ class Server
         int                          _serverFd;
         sockaddr_in                  _address;
         std::string                  _ip;
-        int                          _port;
+        std::vector<uint16_t>         _ports;
+       // int                          _port;
         int                          _epollFd;
         bool                         _running;
         std::map<int, clock_t>       _requestStartTime;
